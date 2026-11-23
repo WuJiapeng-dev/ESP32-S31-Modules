@@ -13,6 +13,11 @@ ESP32-S31 系列功能模块的**多模块汇总仓库**。一个模块一个目
 | # | 目录 | 模块名 | 功能 | 板级外设 | 状态 |
 |---|---|---|---|---|---|
 | 01 | [`chuankou/`](chuankou/) | 串口/BLE 桥 | BLE 收 `ON`/`OFF` → UART0 转发 → STM32 控 LED，Notify 回执 | UART0 (GPIO58/59) + NimBLE | 已烧录验证（CH343/COM8，2026-11-23） |
+| 02 | [`laba/`](laba/) | SYN6288 语音合成 | BLE 收任意 UTF-8 文本 → 转 GB2312 → UART1 下发 SYN6288 播报，BY 忙信号回执 | UART1 (GPIO9/8) + BY (GPIO12) + NimBLE | 编译通过（0 error / 0 warning），待实机验证 |
+
+两个模块**共用同一套 BLE 身份**：广播名 `kskbl zdjd`，服务/特征 UUID
+`6a400001/0002/0003-b5a3-f393-e0a9-e50e24dcca9e`。手机调试助手的配置可以原样复用，
+刷哪个模块就连哪个（同一时间只能跑一个）。
 
 后续模块在此表追加一行。
 
@@ -85,6 +90,11 @@ idf.py --preview build
   ```
   依据：`SOC_USB_SERIAL_JTAG_SUPPORTED = 1`（`soc/esp32s31/include/soc/soc_caps.h`）。
 - **GPIO 合法范围**：`SOC_GPIO_PIN_COUNT = 62`，即 GPIO0–61；GPIO29 / GPIO41 不可用。
+- **U1/U2/U3 没有默认引脚**：`soc/esp32s31/include/soc/uart_pins.h` 里 `U1RXD/U1TXD`
+  等全是 `-1`，所以用 UART1 及以上必须显式 `uart_set_pin()`（走 GPIO matrix，任意合法脚都行）。
+  用 UART1 的好处是天生不撞 console，不必改 console 配置。
+- **USB PHY 占用 GPIO33/34**（`io_mux_reg.h` 的 `USB_INT_PHY0_DM/DP_GPIO_NUM`），
+  这两个脚不能挪作他用。
 - **NimBLE API 差异**：v6.1 里 `ble_svc_gap_init()` / `ble_svc_gatt_init()` 返回 `void`（不能接返回值）；
   `ble_store_config_init()` 需应用侧显式调用。
 
