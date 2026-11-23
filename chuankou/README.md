@@ -90,6 +90,21 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 
 ## 6. 烧录与看日志
 
+**一键烧录（推荐）**：双击 `flash.bat`
+
+它会自动完成：激活 IDF v6.1.0 → 查找 CH340 端口（优先 `PID_7523`）→ 无固件则先编译 → 烧录。
+可选参数：
+
+```bat
+flash.bat                  :: 自动找端口 + 烧录
+flash.bat -Port COM7       :: 指定端口
+flash.bat -Monitor         :: 烧完直接进 monitor（Ctrl+] 退出）
+```
+
+端口没找到时脚本会直接列出排查项（UART 口 / 数据线 / CH341SER 驱动），不会盲烧。
+
+**手动烧录**
+
 ```bat
 cd /d <仓库路径>\chuankou
 idf.py --preview -p COMx flash
@@ -100,6 +115,8 @@ idf.py --preview -p COMx monitor
 - 日志走 **USB Serial/JTAG**（`CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y`）；
   若该口引到了板上的另一个 USB 口，日志就从那个口看，CH340 口只负责烧录
 - 退出 monitor：`Ctrl+]`
+- 烧录偏移（`build/flash_args`）：`0x2000` bootloader / `0x8000` 分区表 / `0x10000` app，
+  `dio` / `80m` / `16MB`
 
 ## 7. 为什么 console 必须搬走（关键）
 
