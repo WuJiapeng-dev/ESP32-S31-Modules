@@ -15,6 +15,8 @@ laba/
 ├── sdkconfig.defaults          console 改 USB Serial/JTAG、NimBLE 外设+广播者、16MB Flash
 ├── .vscode/settings.json       IDF_TARGET=esp32s31
 ├── README.md                   本文件
+├── flash.bat / flash.ps1       一键烧录（自动激活 IDF + 自动识别 CH343）
+├── flash_verify.txt            2026-11-23 COM8 实烧原始日志
 ├── tools/
 │   └── gen_gb2312_table.py     GB2312 码表生成脚本（可复现）
 └── main/
@@ -135,6 +137,18 @@ syn6288_set_baud_rate(0);   /* 0=9600 1=19200 2=38400 */
 
 ## 6. 编译与烧录
 
+### 6.1 一键烧录（推荐）
+
+双击 `flash.bat` 即可，脚本会自动激活 IDF、自动识别 CH343、固件缺失时先编译：
+
+```bat
+flash.bat                  :: 自动找端口 + 烧录
+flash.bat -Port COM8       :: 指定端口
+flash.bat -Monitor         :: 烧完直接看日志
+```
+
+### 6.2 手动烧录
+
 必须在**已激活 IDF v6.1.0 的终端**里执行，且 `esp32s31` 是 preview 目标，`idf.py` 必须带 `--preview`：
 
 ```bat
@@ -147,8 +161,34 @@ idf.py --preview -p COMx flash
 
 - 本机 `-j` 参数非法，并行度只能用环境变量 `IDF_PY_BUILD_JOBS`（8GB 内存建议 3）
 - 烧录口：板载 CH343（VID 1A86 / PID 55D3）
-- **烧录时把 SYN6288 的 TXD 从 GPIO08 上拔掉**：CH343 的 TX 与模块 TXD 都接到
-  GPIO9/8 一侧会互相顶，容易出乱码甚至伤脚。烧完再接回。
+- 镜像偏移：`0x2000` bootloader / `0x8000` partition-table / `0x10000` app，
+  模式 `dio / 80m / 16MB`
+
+### 6.3 烧录时要不要拔 SYN6288？
+
+**不需要。** CH343 走的是 UART0（`GPIO58/59`），SYN6288 走 UART1（`GPIO9/8`），
+两组引脚互不相干，同时接着也不会冲突。
+
+### 6.4 实烧结果（2026-11-23，COM8）
+
+| 项 | 结果 |
+|---|---|
+| 芯片 | `ESP32-S31 (revision v0.0)` / MAC `1c:29:04:d0:40:52` |
+| `bootloader.bin` @ `0x2000` | No changed sectors found，verified |
+| `partition-table.bin` @ `0x8000` | No changed sectors found，verified |
+| `laba_s31_tts.bin` @ `0x10000` | 866672 bytes 写入，Hash of data verified |
+| 收尾 | `Hard resetting via RTS pin` → `Done` |
+
+原始日志见 `flash_verify.txt`。
+
+### 6.5 为什么串口看不到日志
+
+`console` 被显式让位给了 USB Serial/JTAG（`CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y`、
+`CONFIG_ESP_CONSOLE_UART_NUM=-1`），所以 **UART0 上一条日志都不会有**——这是设计，不是故障。
+要看日志有两条路：
+
+1. 插板子的原生 USB 口（USB Serial/JTAG），会出现一个 Espressif CDC 端口，日志从那里出；
+2. 临时改 `sdkconfig.defaults` 把 console 挪回 UART 再重编，但那样 UART0 会同时跑日志和数据，容易干扰桥接。
 
 ---
 
