@@ -1,0 +1,57 @@
+# ============================================================
+# ESP32-S31 云端语音合成（火山引擎 TTS + I2S 功放）/ 默认配置
+# 说明：
+# 1) 目标芯片 esp32s31 由 idf.py --preview set-target 决定
+# 2) console 挪到 USB Serial/JTAG，UART0 完全让位（与 chuankou / laba 模块策略一致）
+# 3) 本模块不用 SYN6288，I2S 走 GPIO15/16/17，不占用 UART0/1
+# ============================================================
+
+# ---------- 控制台：USB Serial/JTAG ----------
+CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
+CONFIG_ESP_CONSOLE_UART_DEFAULT=n
+
+# 启动阶段 UART 噪声降到最低
+CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
+
+# ---------- 日志 ----------
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+
+# ---------- Wi-Fi（STA 连路由器 + 配网时 SoftAP）----------
+CONFIG_ESP_WIFI_ENABLED=y
+CONFIG_ESP_WIFI_STATIC_RX_BUFFER_NUM=8
+CONFIG_ESP_WIFI_DYNAMIC_RX_BUFFER_NUM=16
+CONFIG_ESP_WIFI_DYNAMIC_TX_BUFFER_NUM=16
+# 配网高峰期不因内存抖动复位
+CONFIG_ESP_WIFI_IRAM_OPT=y
+
+# ---------- 蓝牙：NimBLE，仅外设 + 广播者 ----------
+CONFIG_BT_ENABLED=y
+CONFIG_BT_BLUEDROID_ENABLED=n
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_ROLE_PERIPHERAL=y
+CONFIG_BT_NIMBLE_ROLE_BROADCASTER=y
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
+CONFIG_BT_NIMBLE_GAP_SERVICE=y
+CONFIG_BT_NIMBLE_EXT_ADV=y
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=2
+
+# ---------- HTTPS：内置根证书包（火山接口是 https）----------
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
+CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
+# TLS 握手缓冲按实际下调，省 SRAM（火山证书链不长）
+CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN=4096
+CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN=4096
+
+# ---------- HTTP 客户端 ----------
+CONFIG_ESP_HTTP_CLIENT_ENABLE_HTTPS=y
+
+# ---------- lwIP：少量 socket 够用 ----------
+CONFIG_LWIP_MAX_SOCKETS=8
+
+# ---------- Flash ----------
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+
+# ---------- 分区：默认单 app 只有 1.47MB，装不下 Wi-Fi+BLE+TLS，改自定义 4MB ----------
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
