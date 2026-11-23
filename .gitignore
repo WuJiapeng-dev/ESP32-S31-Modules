@@ -1,0 +1,29 @@
+# ---------------- ESP-IDF 构建产物 ----------------
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+compile_commands.json
+*.bin
+*.elf
+*.map
+*.su
+
+# ---------------- 日志与临时文件 ----------------
+*.log
+build_log*.txt
+*.tmp
+*.bak
+
+# ---------------- 编辑器 / IDE ----------------
+.vscode/*
+!.vscode/settings.json
+.idea/
+*.swp
+*.swo
+
+# ---------------- 系统 ----------------
+.DS_Store
+Thumbs.db
+desktop.ini

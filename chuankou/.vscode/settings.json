@@ -1,0 +1,5 @@
+{
+  "IDF_TARGET": "esp32s31",
+  "idf.flashType": "UART",
+  "idf.enableCCache": true
+}
