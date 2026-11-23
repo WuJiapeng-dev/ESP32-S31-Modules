@@ -2,7 +2,7 @@
 chcp 65001 >nul
 cd /d "%~dp0"
 echo ============================================
-echo  laba_cloud 模块一键烧录 (ESP32-S31)
+echo  yinse 模块一键烧录 (ESP32-S31)
 echo ============================================
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0flash.ps1" %*
 set "RC=%ERRORLEVEL%"

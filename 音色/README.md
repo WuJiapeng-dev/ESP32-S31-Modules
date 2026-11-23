@@ -1,24 +1,27 @@
-# laba_cloud — ESP32-S31 云端语音合成（BLE → 火山引擎 TTS → I2S）
+# 音色 — ESP32-S31 云端语音合成（BLE → 火山引擎 TTS → I2S）
+
+> 模块编号 03。目录名 `音色`——这个模块存在的唯一理由就是**换音色**：
+> SYN6288 只能固化一个发音人，要男女声、童声、多语种就得走云端 TTS。
 
 手机 BLE 连 `kskbl zdjd`，往写特征发中文，ESP32-S31 走 HTTPS 调火山引擎语音合成，
 拿回 PCM 直接推 I2S 给数字功放出声。**音色、语速、音量都能在网页控制台里改**。
 
-本目录是 **ESP-IDF 工程根**，与仓库里 `chuankou/`、`laba/` 并列，不是仓库根目录的主工程。
+本目录是 **ESP-IDF 工程根**，与仓库里 `串口/`、`喇叭/` 并列，不是仓库根目录的主工程。
 
 ---
 
 ## 1. 为什么另起一个模块
 
-`laba/` 用的是 SYN6288，那颗芯片是**喂文本、吐模拟声**的封闭器件：
+`喇叭/` 用的是 SYN6288，那颗芯片是**喂文本、吐模拟声**的封闭器件：
 
 - 输入只有 UART 文本，音频由芯片内部 DAC 直接推功放（手册 §1.7 引脚 13 `BP0` / 15 `BN0`）
 - 音色固化了**一个**，手册全篇没有任何切换发音人的命令或标记
 - ESP32 碰不到音频数据，所以「软件变调换音色」这条路物理上行不通
 
 要换音色只有走云端 TTS，而云端返回的是**数字音频流**，SYN6288 没有音频输入口。
-所以这不是"改个配置"，是整条播放链路换掉——因此单独成模块，`laba/` 原样保留当离线兜底。
+所以这不是"改个配置"，是整条播放链路换掉——因此单独成模块，`喇叭/` 原样保留当离线兜底。
 
-| | laba（SYN6288） | laba_cloud（本模块） |
+| | 喇叭（SYN6288） | 音色（本模块） |
 |---|---|---|
 | 出声路径 | UART 文本 → 芯片内部合成 | HTTPS 取 PCM → I2S → 功放 |
 | 音色 | 固定一个 | 火山音色库随便挑 |
@@ -61,7 +64,7 @@
 
 - 不需要 MCLK。MAX98357A、PCM5102、UDA1334 这类都不需要，代码里 `mclk = I2S_GPIO_UNUSED`。
 - GPIO15/16/17 均在 `soc_caps.h` 确认有效：`SOC_GPIO_VALID_GPIO_MASK` 只排除了 **GPIO29 与 GPIO41**（注释写明 *not bonded*，未键合）。
-- 与 `chuankou`（UART0: GPIO58/59）、`laba`（UART1: GPIO8/9/12）、USB PHY（GPIO33/34）**完全不冲突**，三个模块的线可以同时接着。
+- 与 `串口`（UART0: GPIO58/59）、`喇叭`（UART1: GPIO8/9/12）、USB PHY（GPIO33/34）**完全不冲突**，三个模块的线可以同时接着。
 
 ### 3.2 关于功放增益
 
@@ -174,7 +177,7 @@ flash.bat -Monitor
 必须在**已激活 IDF v6.1.0 的终端**里，且 `esp32s31` 是 preview 目标：
 
 ```bat
-cd /d "C:\Users\yyn\Desktop\ESP32-S31  ks\laba_cloud"
+cd /d "C:\Users\yyn\Desktop\ESP32-S31  ks\音色"
 idf.py --preview set-target esp32s31
 set IDF_PY_BUILD_JOBS=3
 idf.py --preview build
@@ -248,7 +251,7 @@ idf.py --preview build
 | 内容 | 来源 |
 |---|---|
 | TTS 接口、参数、鉴权 | [火山官方文档 V1](https://www.volcengine.cn/docs/DoubaoVoice/HTTPone-timecompositenon-streaminginterface-V1notrecommended) / [鉴权方法](https://docs.volcengine.com/docs/DoubaoVoice/Authenticationmethod) |
-| BLE 服务与 UUID | 沿用本仓库 `chuankou/`、`laba/` 同一套：`6a400001/0002/0003-b5a3-f393-e0a9-e50e24dcca9e`，广播名 `kskbl zdjd` |
+| BLE 服务与 UUID | 沿用本仓库 `串口/`、`喇叭/` 同一套：`6a400001/0002/0003-b5a3-f393-e0a9-e50e24dcca9e`，广播名 `kskbl zdjd` |
 | GPIO29/41 不可用 | `esp-idf/components/soc/esp32s31/include/soc/soc_caps.h` 第 235 行 `SOC_GPIO_VALID_GPIO_MASK`，第 241 行注释 *excluding GPIO29/41 which are not bonded* |
 | I2S API | `esp-idf/components/esp_driver_i2s/include/driver/i2s_std.h`（`I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG` 等） |
 | Flash / 芯片 | 实机 `esptool` 输出：`ESP32-S31 (revision v0.0)`、16MB flash、MAC `1c:29:04:d0:40:52` |

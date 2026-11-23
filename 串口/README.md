@@ -1,4 +1,4 @@
-# 模块 01 · chuankou —— BLE ↔ UART0 桥
+# 模块 01 · 串口 —— BLE ↔ UART0 桥
 
 手机 BLE 调试助手连上广播名 **`kskbl zdjd`**，向 Write 特征写 ASCII `ON` / `OFF`，
 ESP32-S31 通过 **UART0（TX=GPIO58 / RX=GPIO59）** 把 `ON\n` / `OFF\n` 发给对端 MCU，
@@ -11,7 +11,7 @@ ESP32-S31 通过 **UART0（TX=GPIO58 / RX=GPIO59）** 把 `ON\n` / `OFF\n` 发�
 ## 1. 目录结构
 
 ```
-chuankou/
+串口/
 ├── README.md              ← 本文件
 ├── CMakeLists.txt         ← ESP-IDF 工程入口（必须在这一层）
 ├── sdkconfig.defaults     ← console 搬 USB Serial/JTAG、NimBLE、Flash 16MB
@@ -69,7 +69,7 @@ chuankou/
 
 ```bat
 :: 打开桌面快捷方式「IDF_v6.1_Powershell」
-cd /d <仓库路径>\chuankou
+cd /d <仓库路径>\串口
 idf.py --preview set-target esp32s31
 idf.py --preview build
 ```
@@ -106,7 +106,7 @@ flash.bat -Monitor         :: 烧完直接进 monitor（Ctrl+] 退出）
 **手动烧录**
 
 ```bat
-cd /d <仓库路径>\chuankou
+cd /d <仓库路径>\串口
 idf.py --preview -p COMx flash
 idf.py --preview -p COMx monitor
 ```

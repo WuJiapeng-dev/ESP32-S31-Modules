@@ -1,16 +1,16 @@
-# laba — ESP32-S31 + SYN6288 中文语音合成（BLE → TTS）
+# 喇叭 — ESP32-S31 + SYN6288 中文语音合成（BLE → TTS）
 
 手机 BLE 连上 `kskbl zdjd`，往写特征发任意 UTF-8 文本，ESP32-S31 转成 GB2312 后按
 SYN6288 帧协议经 UART1 下发，模块直接播报。播报状态经 Notify 特征回传手机。
 
-本目录是 **ESP-IDF 工程根**，与仓库里 `chuankou/` 模块并列，不是仓库根目录的主工程。
+本目录是 **ESP-IDF 工程根**，与仓库里 `串口/` 模块并列，不是仓库根目录的主工程。
 
 ---
 
 ## 1. 目录结构
 
 ```
-laba/
+喇叭/
 ├── CMakeLists.txt              顶层工程（project: laba_s31_tts）
 ├── sdkconfig.defaults          console 改 USB Serial/JTAG、NimBLE 外设+广播者、16MB Flash
 ├── .vscode/settings.json       IDF_TARGET=esp32s31
@@ -22,7 +22,7 @@ laba/
 └── main/
     ├── CMakeLists.txt
     ├── main.c                  启动顺序：NVS → SYN6288 → TTS 任务 → NimBLE → 广播
-    ├── ble_bridge.c/.h         GATT 服务 + 广播（UUID 与 chuankou 模块完全一致）
+    ├── ble_bridge.c/.h         GATT 服务 + 广播（UUID 与串口模块完全一致）
     ├── tts.c/.h                写缓冲拼接、UTF-8→GB2312、分帧播放、Notify 回执
     ├── syn6288.c/.h            协议帧构造、UART1、BY 忙信号
     ├── gb2312.c/.h             UTF-8 → GB2312 转码（二分查表）
@@ -152,7 +152,7 @@ flash.bat -Monitor         :: 烧完直接看日志
 必须在**已激活 IDF v6.1.0 的终端**里执行，且 `esp32s31` 是 preview 目标，`idf.py` 必须带 `--preview`：
 
 ```bat
-cd /d "C:\Users\yyn\Desktop\ESP32-S31  ks\laba"
+cd /d "C:\Users\yyn\Desktop\ESP32-S31  ks\喇叭"
 idf.py --preview set-target esp32s31
 set IDF_PY_BUILD_JOBS=3
 idf.py --preview build
@@ -236,7 +236,7 @@ idf.py --preview -p COMx flash
 | 内容 | 来源 |
 |---|---|
 | 接线（GPIO9/GPIO8/GPIO12、3V3、GND） | 用户提供的接线图片，逐字采用 |
-| BLE 广播名 `kskbl zdjd`、三个 128-bit UUID | 本对话上一轮（chuankou 模块）已确定并实机验证 |
+| BLE 广播名 `kskbl zdjd`、三个 128-bit UUID | 本对话上一轮（串口模块）已确定并实机验证 |
 | SYN6288 帧格式、命令字/参数、异或、BY 极性、时序约束 | 《SYN6288E 用户手册》§3.2/§4.1/§4.2/§4.3/§4.4/§7.3/§9.5 |
 | 波特率 9600 8N1 | 手册 §3.2「初始波特率 9600 bps, 8 数据位, 无校验, 1 停止位」 |
 | `esp32s31` 需 `--preview`、必须激活 IDF 终端、`IDF_PY_BUILD_JOBS` | `D:\esp\projects\xiaozhi-esp32-s31\开发环境说明_ESP32-S31.md` §3 |

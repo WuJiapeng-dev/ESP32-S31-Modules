@@ -12,15 +12,18 @@ ESP32-S31 系列功能模块的**多模块汇总仓库**。一个模块一个目
 
 | # | 目录 | 模块名 | 功能 | 板级外设 | 状态 |
 |---|---|---|---|---|---|
-| 01 | [`chuankou/`](chuankou/) | 串口/BLE 桥 | BLE 收 `ON`/`OFF` → UART0 转发 → STM32 控 LED，Notify 回执 | UART0 (GPIO58/59) + NimBLE | 已烧录验证（CH343/COM8，2026-11-23） |
-| 02 | [`laba/`](laba/) | SYN6288 语音合成 | BLE 收任意 UTF-8 文本 → 转 GB2312 → UART1 下发 SYN6288 播报，BY 忙信号回执 | UART1 (GPIO9/8) + BY (GPIO12) + NimBLE | 编译通过（0 error / 0 warning），待实机验证 |
-| 03 | [`laba_cloud/`](laba_cloud/) | 云端语音合成 | BLE 收文本 → HTTPS 调火山 TTS 拿 PCM → I2S 推功放；音色/语速/音量网页可调 | I2S (GPIO15/16/17) + Wi-Fi + NimBLE | 编译通过（0 error / 0 warning，1.64MB），待实机验证 |
+| 01 | [`串口/`](串口/) | 串口/BLE 桥 | BLE 收 `ON`/`OFF` → UART0 转发 → STM32 控 LED，Notify 回执 | UART0 (GPIO58/59) + NimBLE | 已烧录验证（CH343/COM8，2026-11-23） |
+| 02 | [`喇叭/`](喇叭/) | SYN6288 语音合成 | BLE 收任意 UTF-8 文本 → 转 GB2312 → UART1 下发 SYN6288 播报，BY 忙信号回执 | UART1 (GPIO9/8) + BY (GPIO12) + NimBLE | 已烧录验证（COM8，2026-11-23），待实物验证播报 |
+| 03 | [`音色/`](音色/) | 云端语音合成 | BLE 收文本 → HTTPS 调火山 TTS 拿 PCM → I2S 推功放；音色/语速/音量网页可调 | I2S (GPIO15/16/17) + Wi-Fi + NimBLE | 编译通过（0 error / 0 warning，1.64MB），待实机验证 |
+
+> 目录名用中文，GitHub 网页上的链接会自动转成 `%E4%B8%B2%E5%8F%A3` 这类 percent-encoded
+> 形式，属正常现象，点进去照常能打开。`git clone` 到本地后目录名就是中文。
 
 三个模块**共用同一套 BLE 身份**：广播名 `kskbl zdjd`，服务/特征 UUID
 `6a400001/0002/0003-b5a3-f393-e0a9-e50e24dcca9e`。手机调试助手的配置可以原样复用，
 刷哪个模块就连哪个（同一时间只能跑一个）。
 
-`laba` 与 `laba_cloud` 是同一件事的两条路：SYN6288 音色固定（芯片只固化一个发音人，
+`喇叭` 与 `音色` 是同一件事的两条路：SYN6288 音色固定（芯片只固化一个发音人，
 音频模拟直出、ESP32 拿不到数字流），要换音色只能走云端 TTS，于是另开一个模块，
 原模块保留作离线兜底。两者引脚不冲突，可以同时接线，但固件只能刷一个。
 
@@ -43,7 +46,9 @@ ESP32-S31 系列功能模块的**多模块汇总仓库**。一个模块一个目
 ESP32-S31-Modules/
 ├── README.md              ← 本文件：仓库总说明、模块清单、环境约定
 ├── .gitignore             ← 仓库级忽略规则（覆盖所有模块）
-└── <模块名>/               ← 一个模块一个目录，目录名即模块名
+├── 串口/                   ← 模块 01：BLE ↔ UART0 桥
+├── 喇叭/                   ← 模块 02：SYN6288 离线语音合成
+└── 音色/                   ← 模块 03：云端 TTS（火山引擎 → I2S）
     ├── README.md          ← 模块说明：协议/接线/编译/验收/排查
     ├── CMakeLists.txt     ← ESP-IDF 工程入口（必须在这一层）
     ├── sdkconfig.defaults ← 模块的默认配置，随仓库提交
@@ -52,6 +57,8 @@ ESP32-S31-Modules/
 
 约定：
 
+- **目录名即模块名，用中文**；目录内部的文件名、工程名（`project()`）仍保持 ASCII，
+  避免工具链在非 ASCII 路径下的意外问题
 - **不放 `sdkconfig`**（构建时生成，机器相关），只提交 `sdkconfig.defaults`
 - **不放 `build/`**、`*.bin`、`*.elf`、`*.map`（见 `.gitignore`）
 - 每个模块的 `README.md` 必须能独立说明：协议、引脚、构建命令、验收标准、排查顺序

@@ -31,7 +31,7 @@
 #include "speak.h"
 #include "wifi_prov.h"
 
-static const char *TAG = "laba_cloud";
+static const char *TAG = "yinse";
 
 /* IDF 的 NimBLE 端口不注册 store 回调，需要应用侧调用（与官方 bleprph 示例一致） */
 void ble_store_config_init(void);

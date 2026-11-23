@@ -1,4 +1,4 @@
-﻿# 一键烧录 laba_cloud 模块（ESP32-S31 / target esp32s31 preview）
+﻿# 一键烧录 yinse 模块（ESP32-S31 / target esp32s31 preview）
 #
 # 用法：
 #   双击 flash.bat                                  自动找端口 + 编译 + 烧录
@@ -50,7 +50,7 @@ if (-not $Port) {
     Write-Host "[2/4] 使用指定端口: $Port" -ForegroundColor Cyan
 }
 
-$bin = Join-Path $PSScriptRoot 'build\laba_s31_cloud.bin'
+$bin = Join-Path $PSScriptRoot 'build\yinse.bin'
 if (-not (Test-Path $bin)) {
     Write-Host "[3/4] 没有固件，先编译（首次较慢）..." -ForegroundColor Cyan
     $env:IDF_PY_BUILD_JOBS = '3'
@@ -60,7 +60,7 @@ if (-not (Test-Path $bin)) {
     idf.py --preview build
     if ($LASTEXITCODE -ne 0) { Write-Host "[X] 编译失败" -ForegroundColor Red; exit 3 }
 } else {
-    Write-Host "[3/4] 已有固件: build\laba_s31_cloud.bin" -ForegroundColor Cyan
+    Write-Host "[3/4] 已有固件: build\yinse.bin" -ForegroundColor Cyan
 }
 
 Write-Host "[4/4] 烧录到 $Port ..." -ForegroundColor Cyan
