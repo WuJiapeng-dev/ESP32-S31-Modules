@@ -12,7 +12,7 @@ ESP32-S31 系列功能模块的**多模块汇总仓库**。一个模块一个目
 
 | # | 目录 | 模块名 | 功能 | 板级外设 | 状态 |
 |---|---|---|---|---|---|
-| 01 | [`chuankou/`](chuankou/) | 串口/BLE 桥 | BLE 收 `ON`/`OFF` → UART0 转发 → STM32 控 LED，Notify 回执 | UART0 (GPIO58/59) + NimBLE | 编译通过，待实烧 |
+| 01 | [`chuankou/`](chuankou/) | 串口/BLE 桥 | BLE 收 `ON`/`OFF` → UART0 转发 → STM32 控 LED，Notify 回执 | UART0 (GPIO58/59) + NimBLE | 已烧录验证（CH343/COM8，2026-11-23） |
 
 后续模块在此表追加一行。
 
@@ -23,7 +23,7 @@ ESP32-S31 系列功能模块的**多模块汇总仓库**。一个模块一个目
 | 芯片目标 | `esp32s31`（**ESP-IDF preview 目标**，所有 `idf.py` 必须带 `--preview`） |
 | ESP-IDF | v6.1.0 |
 | 开发板 | ESP32-S31-CB V1.1（模块 ESP32-WROOM-3） |
-| 烧录口 | 板载 USB 转串口 CH340（VID `1A86` / PID `7523`），串口下载模式 `UART` |
+| 烧录口 | 板载 USB 转串口 **CH343**（VID `1A86` / PID `55D3`，枚举为 `USB-Enhanced-SERIAL CH343`），串口下载模式 `UART` |
 
 `esp32s31` 在 v6.1 里是 preview 目标，**漏掉 `--preview` 会直接报 target 不支持**。
 

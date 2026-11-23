@@ -111,7 +111,8 @@ idf.py --preview -p COMx flash
 idf.py --preview -p COMx monitor
 ```
 
-- 板载 USB 转串口是 **CH340**（VID `1A86` / PID `7523`），插板后在设备管理器确认 COM 号
+- 板载 USB 转串口实测为 **CH343**（VID `1A86` / PID `55D3`，枚举成 `USB-Enhanced-SERIAL CH343 (COMx)`）；
+  本机历史环境里也出现过 CH340（`PID_7523`）的端口，`flash.bat` 两种都认。插板后在设备管理器确认 COM 号
 - 日志走 **USB Serial/JTAG**（`CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y`）；
   若该口引到了板上的另一个 USB 口，日志就从那个口看，CH340 口只负责烧录
 - 退出 monitor：`Ctrl+]`
@@ -177,7 +178,37 @@ CONFIG_ESP_CONSOLE_UART_DEFAULT=n
 | `kskbl_s31_bridge.bin` | `0xcaa50` = 811 KB（1 MB app 分区，剩 21%） |
 | `bootloader.bin` | `0x4cc0` |
 | `sdkconfig` 关键项 | `ESP_CONSOLE_USB_SERIAL_JTAG=y`、`ESPTOOLPY_FLASHSIZE="16MB"`、`NIMBLE_ROLE_PERIPHERAL/BROADCASTER=y`、`NIMBLE_EXT_ADV=y` |
-| 实烧验证 | **未做**（本机串口全为 `Unknown`，`esptool chip-id` 报 `could not open port`） |
+| 实烧验证 | **已烧录（2026-11-23 12:31）**，见下节 |
+
+### 实烧结果（CH343 / COM8）
+
+```
+idf.py --preview -p COM8 flash
+```
+
+```
+Connected to ESP32-S31 on COM8:
+Chip type:          ESP32-S31 (revision v0.0)
+Features:           Wi-Fi 6, BT 5.4 (LE), IEEE802.15.4, Dual Core + LP Core, 300MHz
+Crystal frequency:  40MHz
+MAC:                1c:29:04:d0:40:52
+
+Writing 'bootloader/bootloader.bin' at 0x00002000...      verified
+Writing 'partition_table/partition-table.bin' at 0x00008000... verified
+Writing 'kskbl_s31_bridge.bin' at 0x00010000...            verified
+Hard resetting via RTS pin...  Done
+```
+
+- 三段镜像（bootloader `0x2000` / 分区表 `0x8000` / app `0x10000`）**全部 `verified`**
+- 二次执行时 esptool 报 `No changed sectors found, verifying if data is in flash`，
+  说明内容与 flash 中完全一致（逐扇区核对通过），全程 13 秒
+- **运行态未从串口验证**：模块把 console 改到了 USB Serial/JTAG，CH343（UART0）上不会有启动日志，
+  复位后 1.8 秒内串口无数据属预期。运行验收需用手机 BLE 助手搜 `kskbl zdjd`，或把板子的原生 USB 口
+  接到电脑看日志（会枚举成 `VID_303A` 的 USB 串行设备）
+
+> **接线注意（实测发现）**：CH343 就挂在 UART0（即 GPIO58/59）上。烧录完成后如果还要接 STM32 的
+> PA2/PA3，建议**先拔掉 CH343 这根 USB 线**——否则 CH343 的 TX 与 STM32 的 TX 会同时驱动 GPIO59，
+> 两个推挽输出对顶，轻则通信乱码，重则伤引脚。
 
 **编译期已踩过的坑（都已修）**
 
