@@ -45,7 +45,7 @@ if not exist "%PY%" (
 
 rem ---------- 2. find port ----------
 if "%PORT%"=="" (
-    for /f "usebackq delims=" %%P in (`powershell -NoProfile -Command "$c=Get-CimInstance Win32_PnPEntity ^| Where-Object { $_.Name -match 'COM\d+' -and $_.Name -match 'CH343^|CH340^|CP210^|USB-SERIAL^|USB-Enhanced' } ^| Select-Object -First 1; if ($c) { [regex]::Match($c.Name,'COM\d+').Value }"`) do set "PORT=%%P"
+    for /f "usebackq delims=" %%P in (`powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0port.ps1"`) do set "PORT=%%P"
 )
 if "%PORT%"=="" (
     echo [X] no CH343/CH340 port found.
