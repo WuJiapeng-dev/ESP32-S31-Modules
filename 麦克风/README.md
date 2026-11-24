@@ -174,9 +174,21 @@ build.bat
 
 `build.bat` 已经内置了 IDF 环境变量与 `--preview`，**不要**在未激活的普通终端里直接敲 `idf.py`。
 
-烧录（板载 CH343，COM 口按实际改）：
+烧录有两种方式，**推荐用 `flash.bat`**（不重新编译，直接烧已有产物）：
 
 ```bat
+cd /d C:\espwork\maikefeng
+flash.bat                :: 自动找 CH343/CH340 串口并烧
+flash.bat COM8           :: 指定串口
+flash.bat COM8 check     :: 只读芯片 ID，不写入
+```
+
+`flash.bat` 直接调 esptool 读 `build_check\flash_args`（bootloader `0x2000` /
+partition-table `0x8000` / app **`0x70000`**），不经过 ninja 与 gcc，
+所以**放在中文路径下也能烧**（编译才要求纯 ASCII）。
+
+```bat
+:: 或者用 IDF 自己的命令（要求纯 ASCII 路径）
 idf.py -B build_check --preview -p COM8 flash
 ```
 
