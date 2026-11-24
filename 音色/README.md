@@ -1,10 +1,10 @@
-# 音色 — ESP32-S31 云端语音合成（BLE → DeepSeek TTS → I2S）
+# 音色 — ESP32-S31 云端语音合成（BLE → DeepSeek TTS → 功放）
 
 > 模块编号 03。目录名 `音色`——这个模块存在的唯一理由就是**换音色**：
 > SYN6288 只能固化一个发音人，要男女声、多语种就得走云端 TTS。
 
 手机 BLE 连 `kskbl zdjd`，往写特征发中文，ESP32-S31 走 HTTPS 调 DeepSeek 语音合成，
-拿回 PCM 直接推 I2S 给数字功放出声。**音色在网页控制台里选，Key 也在网页里填。**
+拿回 PCM 直接推功放出声。**音色在网页控制台里选，Key 也在网页里填。**
 
 本目录是 **ESP-IDF 工程根**，与仓库里 `串口/`、`喇叭/` 并列，不是仓库根目录的主工程。
 
@@ -39,9 +39,9 @@
    ↓ pick_cut()        按标点切块，单块 ≤1024 字节
    ↓ ds_tts_speak()    POST https://api.deepseek.com/v1/tools/tts
    ↓ 响应体直接就是裸 PCM（边合成边返回），边收边攒样本
-   ↓ audio_out_write_mono16()  单声道复制成双声道
+   ↓ audio_out_write_mono16()  按后端决定衰减 / 复制声道
    ↓ I2S0 @24kHz 16bit
-数字功放（MAX98357A / PCM5102 类）
+功放（PDM→RC→PAM8403 / I2S→MAX98357A）
    ↓
 喇叭
 ```
@@ -55,7 +55,8 @@
 | `OK:DONE` | 全部播完 |
 | `OK:STOP` | 被 `speak_stop()` 打断 |
 | `ERR:NOWIFI` | Wi-Fi 没连上 |
-| `ERR:NOKEY` | API Key 没填 |
+| `ERR:NOKEY` | 当前引擎的凭据没填（DeepSeek 缺 Key / 豆包缺 AppID 或 Token） |
+| `ERR:ENGINE` | 引擎是豆包，但豆包后端尚未接入 |
 | `ERR:KEY` | HTTP 401/403，Key 不对 |
 | `ERR:TEXT` | HTTP 400，文本为空或没过内容审核 |
 | `ERR:BUSY` | HTTP 429，并发请求超限 |
@@ -66,7 +67,41 @@
 
 ## 3. 接线
 
-### 3.1 I2S 功放
+代码里用 `audio_out.h` 的 `AUDIO_OUT_BACKEND` 二选一，默认走 **PAM8403（PDM）**。
+
+### 3.1 方案 A：PAM8403 等模拟功放（默认，`AUDIO_BACKEND_PDM`）
+
+**必须先搞清楚一件事：ESP32-S31 没有 DAC。**
+`components/soc/esp32s31/include/soc/soc_caps.h` 里只有 `SOC_SDM_SUPPORTED`，
+没有 `SOC_DAC_SUPPORTED`。所以没法像 ESP32-S3 那样直接 DAC 输出模拟音频，
+只能走 I2S 的 **PDM DAC 模式**：软件写 PCM，硬件 `PCM2PDM` 滤波器把它调制成
+1bit 脉冲流从引脚出来，外部 RC 积分后才是模拟波形。
+
+接线（只占一根信号线）：
+
+| ESP32-S31 | 中间元件 | PAM8403（HW-104 板） |
+|---|---|---|
+| GPIO17 | → R1 **1kΩ** → 节点 A | |
+| 节点 A | → C1 **10nF** → GND | |
+| 节点 A | → C2 **0.1~1µF**（隔直）→ | **L**（左声道输入） |
+| GND | — | **G**（必须共地） |
+| 5V | — | **5V** |
+| | | OUT_L+ / OUT_L− → 无源喇叭 4Ω 或 8Ω |
+
+- **R1 + C1 是低通，不能省**。PDM 载波是 `128 × 24000 = 3.07MHz`，`1kΩ × 10nF`
+  的截止频率约 15.9kHz，对载波衰减约 46dB。直接接功放会听到持续的高频啸叫。
+- **C2 是隔直**。PDM 静音时输出是 1.65V 左右的直流（占空比 50%），
+  PAM8403 输入内部有偏置，不隔直会把工作点顶偏。
+- **PAM8403 是 BTL 输出**：喇叭只接 OUT+ 和 OUT− 两个端子，**任何一端都不能接 GND**，
+  也不能接共地耳机/共地音源，否则烧芯片。
+- **GPIO16 仍然被占用**（PDM 时钟脚），但这一脚**不需要接线**，留空即可。
+- 增益固定 24dB 不可调，所以软件侧做了 `AUDIO_PDM_ATTEN_SHIFT = 3`（−18dB）的
+  数字衰减，防止 3.3Vpp 直接灌进去削波。声音小改 2（−12dB），破音改 4（−24dB）。
+
+元件只有 4 个：`1kΩ ×1`、`10nF ×1`、`0.1µF ×1`、`4Ω/8Ω 喇叭 ×1`。
+10nF 就是丝印 **103**，0.1µF 就是 **104**，手边最常见的两种瓷片电容。
+
+### 3.2 方案 B：MAX98357A 等 I2S 数字功放（`AUDIO_BACKEND_I2S`）
 
 | ESP32-S31 | 方向 | 功放模块 | 说明 |
 |---|---|---|---|
@@ -77,16 +112,24 @@
 | GND | → | GND | 必须共地 |
 
 - 不需要 MCLK。MAX98357A、PCM5102、UDA1334 这类都不需要，代码里 `mclk = I2S_GPIO_UNUSED`。
-- GPIO15/16/17 均在 `soc_caps.h` 确认有效：`SOC_GPIO_VALID_GPIO_MASK` 只排除了 **GPIO29 与 GPIO41**（注释写明 *not bonded*，未键合）。
-- 与 `串口`（UART0: GPIO58/59）、`喇叭`（UART1: GPIO8/9/12）、USB PHY（GPIO33/34）**完全不冲突**，三个模块的线可以同时接着。
+- 不需要任何外围元件，没有载波残留，音质比 PDM 方案明显好，代价是要单独买模块。
+- 切到这个方案：把 `audio_out.h` 里 `#define AUDIO_OUT_BACKEND AUDIO_BACKEND_PDM`
+  改成 `AUDIO_BACKEND_I2S`，业务代码不用动。
 
-### 3.2 关于功放增益
+### 3.3 引脚冲突核对
 
-MAX98357A 板上有个 GAIN 焊盘/电阻，默认 9dB。嫌声音小就按模块丝印改到 12/15dB。
+GPIO15/16/17 均在 `soc_caps.h` 确认有效：`SOC_GPIO_VALID_GPIO_MASK` 只排除了
+**GPIO29 与 GPIO41**（注释写明 *not bonded*，未键合）。
 
-**这是本模块唯一的音量调节手段**——DeepSeek 的 TTS 接口不支持软件调音量，
-所以音量只能在硬件侧定。如果想做软件音量，得在 `audio_out_write_mono16()` 里对
-样本乘一个系数（注意留余量，乘太大会削波失真）。
+与 `串口`（UART0: GPIO58/59）、`喇叭`（UART1: GPIO8/9/12）、USB PHY（GPIO33/34）
+**完全不冲突**，三个模块的线可以同时接着。
+
+### 3.4 关于音量
+
+DeepSeek 的 TTS 接口不支持调音量，音量只能在本地定：
+
+- PDM 方案：改 `AUDIO_PDM_ATTEN_SHIFT`（每加 1 减 6dB）。
+- I2S 方案：MAX98357A 板上有 GAIN 焊盘/电阻，默认 9dB，可改到 12/15dB。
 
 ---
 
@@ -98,8 +141,11 @@ MAX98357A 板上有个 GAIN 焊盘/电阻，默认 9dB。嫌声音小就按模�
 2. 浏览器打开 **http://192.168.4.1/**
 3. 四个页签：
    - **连接**：填 Wi-Fi 名称和密码（只支持 2.4GHz，5GHz 连不上）
-   - **引擎**：填 DeepSeek **API Key**（`sk-` 开头，只有一个字段）
-   - **音色**：选 `stella`（海星·女声）或 `tide`（暗潮·男声）
+   - **引擎**：先选引擎，再填对应凭据
+     - `DeepSeek`：一个 **API Key**（`sk-` 开头）
+     - `豆包 · 火山引擎`：**AppID** + **Access Token** + Cluster（默认 `volcano_tts`）+ voice_type
+     - 两套凭据**同时保存**，切换引擎不用重填；但**豆包后端目前还没接入**，详见 9 节
+   - **音色**：选 `stella`（海星·女声）或 `tide`（暗潮·男声），只对 DeepSeek 生效
    - **试听**：输入一句话点播放，直接听效果；下面还有设备状态表和恢复出厂
 
 为什么热点常开：路由器换密码、搬家、改了 SSID 之后，STA 连不上时设备不会失联，
@@ -147,6 +193,32 @@ Content-Type: application/json
 
 计费（官网价目）：每 1 万字符 $0.45，限时五折 $0.225。**一个汉字算 2 个字符**，
 其他字符（字母、数字、空格）算 1 个。
+
+### 5.1 豆包（火山引擎）接口预研
+
+来源：[V1 HTTP 非流式接口](https://www.volcengine.com/docs/6561/79823)。控制台已经能填，
+后端还没接，这里先把坑记下来，免得下次重新查。
+
+```
+POST https://openspeech.bytedance.com/api/v1/tts
+Authorization: Bearer; <token>        ← 分号分隔，不是空格
+Content-Type: application/json
+```
+
+```json
+{
+  "app":   {"appid": "3145xxxxxx", "token": "任意非空", "cluster": "volcano_tts"},
+  "user":  {"uid": "esp32s31"},
+  "audio": {"voice_type": "BV700_streaming", "encoding": "pcm", "rate": 24000, "speed_ratio": 1.0},
+  "request": {"reqid": "<每次唯一>", "text": "你好", "text_type": "plain", "operation": "query"}
+}
+```
+
+- **响应是 JSON，不是音频裸流**：音频在 `data` 字段里，**base64 编码**，解码后才是 PCM
+- `encoding=pcm` 可以直接要 PCM，不用引 MP3 解码器
+- 文本上限 **1024 字节**（UTF-8），比 DeepSeek 的 64 KiB 小得多
+- `reqid` 每次必须唯一，服务端靠它追踪
+- **非流式**：全部合成完才一次性返回 —— 这就是它暂时不能用的原因，见第 9 节
 
 ---
 
@@ -260,7 +332,7 @@ idf.py --preview build
 
 1. 手机连 `kskbl-setup`，开 http://192.168.4.1/
 2. 「连接」页填 Wi-Fi，保存 → 徽章变绿，状态表里出现 IP
-3. 「引擎」页填 DeepSeek API Key，保存 → 「引擎 就绪」
+3. 「引擎」页选 `DeepSeek`，填 API Key，保存 → 徽章变「DeepSeek 就绪」
 4. 「试听」页点播放 → 喇叭出声
 5. 手机 BLE 助手连 `kskbl zdjd`，订阅 `6a400003…` 的 CCCD
 6. 往 `6a400002…` 写中文，例如 `你好，我是语音合成模块`
@@ -271,6 +343,11 @@ idf.py --preview build
 ## 9. 已知限制
 
 - **只有两个音色**（stella 女声 / tide 男声），这是 DeepSeek 接口的全部
+- **豆包引擎只做了配置项，后端还没接入**。原因：火山 V1 是**非流式**接口，
+  整段音频以 base64 塞在 JSON 里一次返回，24kHz/16bit 单声道约 48KB/秒，
+  10 秒语音就是 640KB base64，ESP32 的堆扛不住。要接得先定策略——
+  要么把每块文本压到一两句（非流式 + 分块），要么改用 v3 的流式接口。
+  现在切过去只会回 `ERR:ENGINE`
 - **不能调语速和音量**，官方明确写「不支持调节语速」。要调音量只能在软件里乘系数，
   或改功放增益焊盘
 - **不支持断点续传**：音频已经开始返回后如果合成失败，响应会中途断开，

@@ -66,9 +66,7 @@ void app_main(void)
     ESP_ERROR_CHECK(err);
 
     ESP_LOGI(TAG, "==== ESP32-S31 云端语音合成模块启动 ====");
-    ESP_LOGI(TAG, "I2S: BCLK=GPIO%d LRC=GPIO%d DIN=GPIO%d @ %dHz",
-             AUDIO_I2S_BCLK_GPIO, AUDIO_I2S_LRC_GPIO, AUDIO_I2S_DIN_GPIO,
-             AUDIO_SAMPLE_RATE);
+    ESP_LOGI(TAG, "音频输出: %s @ %dHz", AUDIO_OUT_DESC, AUDIO_SAMPLE_RATE);
 
     /* 2. 音频输出 */
     ESP_ERROR_CHECK(audio_out_init());

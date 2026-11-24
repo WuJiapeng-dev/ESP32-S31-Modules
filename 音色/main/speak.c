@@ -149,8 +149,19 @@ static bool speak_one_text(const char *text, size_t len)
         return false;
     }
     if (!cfg_ready(&s_cfg)) {
-        ESP_LOGE(TAG, "API Key 未配置");
+        ESP_LOGE(TAG, "当前引擎的凭据未配置");
         ble_bridge_notify("ERR:NOKEY");
+        return false;
+    }
+    if (cfg_engine_is_doubao(&s_cfg)) {
+        /*
+         * 豆包（火山 V1）是非流式接口：整段音频以 base64 塞在 JSON 里一次返回，
+         * 24kHz/16bit 单声道约 48KB/秒，10 秒就是 640KB base64，ESP32 堆吃不消。
+         * 真要接得先定分块策略（每块只放一两句）或换 v3 流式接口，
+         * 在那之前明确返回错误码，别让它安静地失败。
+         */
+        ESP_LOGE(TAG, "豆包引擎后端尚未接入，请切回 DeepSeek");
+        ble_bridge_notify("ERR:ENGINE");
         return false;
     }
 
@@ -322,7 +333,10 @@ void speak_reload_cfg(void)
     app_cfg_t tmp;
     if (cfg_load(&tmp) == ESP_OK) {
         s_cfg = tmp;
-        ESP_LOGI(TAG, "配置已重新加载: voice=%s key=%s",
-                 s_cfg.voice, s_cfg.api_key[0] ? "(已设置)" : "(空)");
+        ESP_LOGI(TAG, "配置已重新加载: engine=%s voice=%s ds_key=%s db_token=%s",
+                 s_cfg.engine,
+                 s_cfg.voice,
+                 s_cfg.api_key[0] ? "(已设置)" : "(空)",
+                 s_cfg.db_token[0] ? "(已设置)" : "(空)");
     }
 }
