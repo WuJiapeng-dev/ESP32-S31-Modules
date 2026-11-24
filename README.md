@@ -3,8 +3,8 @@
 ESP32-S31 系列功能模块的**多模块汇总仓库**。一个模块一个目录，各自是独立的 ESP-IDF 工程，
 互不依赖、可单独编译烧录。
 
-> 本仓库不是单一工程仓库：根目录只放总说明，**模块代码一律在自己的子目录里**。
-> 后续新增模块直接在根下开新目录，不影响已有模块。
+> 本仓库不是单一工程仓库：根目录放**总说明 + 对外展示的网页**，
+> **模块代码一律在自己的子目录里**。后续新增模块直接在根下开新目录，不影响已有模块。
 
 ---
 
@@ -14,7 +14,7 @@ ESP32-S31 系列功能模块的**多模块汇总仓库**。一个模块一个目
 |---|---|---|---|---|---|
 | 01 | [`串口/`](串口/) | 串口/BLE 桥 | BLE 收 `ON`/`OFF` → UART0 转发 → STM32 控 LED，Notify 回执 | UART0 (GPIO58/59) + NimBLE | 已烧录验证（CH343/COM8，2026-11-23） |
 | 02 | [`喇叭/`](喇叭/) | SYN6288 语音合成 | BLE 收任意 UTF-8 文本 → 转 GB2312 → UART1 下发 SYN6288 播报，BY 忙信号回执 | UART1 (GPIO9/8) + BY (GPIO12) + NimBLE | 已烧录验证（COM8，2026-11-23），待实物验证播报 |
-| 03 | [`音色/`](音色/) | 云端语音合成 | BLE 收文本 → HTTPS 调 **DeepSeek TTS** 拿裸 PCM → I2S 推功放；网页配 Key、选音色（stella/tide） | I2S (GPIO15/16/17) + Wi-Fi + NimBLE | 编译通过（0 error / 0 warning，1.64MB），待实机验证 |
+| 03 | [`音色/`](音色/) | 云端语音合成 | BLE 收文本 → HTTPS 调 **DeepSeek TTS** 拿裸 PCM → I2S/PDM 推功放；网页配 Key、选引擎与音色 | I2S (GPIO15/16/17) 或 PDM (GPIO17) + Wi-Fi + NimBLE | 编译通过（0 error / 0 warning，1.72MB，分区余 59%），网页见 [`控制台.html`](控制台.html)，待实机验证 |
 
 > **模块 03 的目录名有个硬限制**：ESP-IDF 的工具链处理不了非 ASCII 路径，
 > 在 `音色/` 这种中文目录下 `build` 会失败（gcc 报 `cannot read spec file`，
@@ -49,6 +49,7 @@ ESP32-S31 系列功能模块的**多模块汇总仓库**。一个模块一个目
 ```
 ESP32-S31-Modules/
 ├── README.md              ← 本文件：仓库总说明、模块清单、环境约定
+├── 控制台.html             ← 对外展示：模块 03 的网页控制台预览（离线，数据是假的）
 ├── .gitignore             ← 仓库级忽略规则（覆盖所有模块）
 ├── 串口/                   ← 模块 01：BLE ↔ UART0 桥
 ├── 喇叭/                   ← 模块 02：SYN6288 离线语音合成
@@ -56,11 +57,15 @@ ESP32-S31-Modules/
     ├── README.md          ← 模块说明：协议/接线/编译/验收/排查
     ├── CMakeLists.txt     ← ESP-IDF 工程入口（必须在这一层）
     ├── sdkconfig.defaults ← 模块的默认配置，随仓库提交
+    ├── tools/
+    │   └── gen_preview.py ← 从 wifi_prov.c 抽出 PAGE_HTML，同时写根目录 控制台.html
     └── main/              ← 源码
 ```
 
 约定：
 
+- **网页这类展示物料放根目录，只有代码分模块**；`控制台.html` 由
+  `音色/tools/gen_preview.py` 生成，不要手改（改 `音色/main/wifi_prov.c` 后重跑脚本）
 - **目录名即模块名，用中文**；目录内部的文件名、工程名（`project()`）仍保持 ASCII，
   避免工具链在非 ASCII 路径下的意外问题
 - **不放 `sdkconfig`**（构建时生成，机器相关），只提交 `sdkconfig.defaults`
@@ -88,7 +93,7 @@ idf.py --preview build
 
 ## 5. 新增模块步骤
 
-1. 根目录建新文件夹，名字用英文小写（如 `wifi_relay`）
+1. 根目录建新文件夹，名字用中文（与 `串口`/`喇叭`/`音色` 一致）
 2. 拷一份现有模块的 `CMakeLists.txt` / `main/CMakeLists.txt` 作骨架，改 `project()` 名
 3. 写自己的 `sdkconfig.defaults`（**别忘 console 配置**，见下）
 4. 写上自己的 `README.md`
