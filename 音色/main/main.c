@@ -1,18 +1,18 @@
 /*
- * ESP32-S31 云端语音合成（BLE 收文本 -> 火山引擎 TTS -> I2S 功放）
+ * ESP32-S31 云端语音合成（BLE 收文本 -> DeepSeek TTS -> I2S 功放）
  *
  * 链路：
  *   手机 BLE 写 "kskbl zdjd" 的写特征
- *     -> speak_feed() 累积成句
- *     -> volc_tts_speak() HTTPS 调火山 V1 接口，流式解码 base64 PCM
+ *     -> speak_feed() 累积、按标点切块
+ *     -> ds_tts_speak() HTTPS 调 DeepSeek /v1/tools/tts，拿回 24kHz 裸 PCM
  *     -> audio_out_write_mono16() 推 I2S
  *     -> MAX98357A / PCM5102 类数字功放 -> 喇叭
  *
  * 配置：
- *   热点 kskbl-setup 常开，手机连上打开 http://192.168.4.1/ 填 Wi-Fi 和火山密钥。
+ *   热点 kskbl-setup 常开，手机连上打开 http://192.168.4.1/ 填 Wi-Fi 和 DeepSeek API Key。
  *   APSTA 常驻，所以连上路由器后热点依然在，随时能改配置或试听。
  *
- * 控制台：USB Serial/JTAG（UART0 完全让位，留给 chuankou 模块的桥接用途）
+ * 控制台：USB Serial/JTAG（UART0 完全让位，留给串口模块的桥接用途）
  */
 #include <stdio.h>
 #include <string.h>

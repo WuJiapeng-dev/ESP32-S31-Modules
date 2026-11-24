@@ -4,7 +4,7 @@ idf_component_register(
          "cfg_store.c"
          "wifi_prov.c"
          "audio_out.c"
-         "volc_tts.c"
+         "ds_tts.c"
          "speak.c"
     INCLUDE_DIRS "."
     REQUIRES bt

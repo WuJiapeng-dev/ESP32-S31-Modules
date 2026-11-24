@@ -1,10 +1,10 @@
-# 音色 — ESP32-S31 云端语音合成（BLE → 火山引擎 TTS → I2S）
+# 音色 — ESP32-S31 云端语音合成（BLE → DeepSeek TTS → I2S）
 
 > 模块编号 03。目录名 `音色`——这个模块存在的唯一理由就是**换音色**：
-> SYN6288 只能固化一个发音人，要男女声、童声、多语种就得走云端 TTS。
+> SYN6288 只能固化一个发音人，要男女声、多语种就得走云端 TTS。
 
-手机 BLE 连 `kskbl zdjd`，往写特征发中文，ESP32-S31 走 HTTPS 调火山引擎语音合成，
-拿回 PCM 直接推 I2S 给数字功放出声。**音色、语速、音量都能在网页控制台里改**。
+手机 BLE 连 `kskbl zdjd`，往写特征发中文，ESP32-S31 走 HTTPS 调 DeepSeek 语音合成，
+拿回 PCM 直接推 I2S 给数字功放出声。**音色在网页控制台里选，Key 也在网页里填。**
 
 本目录是 **ESP-IDF 工程根**，与仓库里 `串口/`、`喇叭/` 并列，不是仓库根目录的主工程。
 
@@ -24,8 +24,8 @@
 | | 喇叭（SYN6288） | 音色（本模块） |
 |---|---|---|
 | 出声路径 | UART 文本 → 芯片内部合成 | HTTPS 取 PCM → I2S → 功放 |
-| 音色 | 固定一个 | 火山音色库随便挑 |
-| 语速 | `[t0]`~`[t5]` 六档 | 0.5~2.0 连续可调 |
+| 音色 | 固定一个 | 两个（女声 stella / 男声 tide） |
+| 语速 | `[t0]`~`[t5]` 六档 | **不可调**（接口不支持） |
 | 联网 | 不需要 | 必须 |
 | 占用引脚 | UART1: GPIO8/9/12 | I2S: GPIO15/16/17 |
 
@@ -35,18 +35,32 @@
 
 ```
 手机 BLE 写特征 (6a400002…)
-   ↓ speak_feed()      累积，静默 300ms 视为一句说完
-   ↓ split_sentence()  按标点切短句
-   ↓ volc_tts_speak()  POST https://openspeech.bytedance.com/api/v1/tts
-   ↓ 流式扫 JSON + 增量 base64 解码 → int16 PCM
+   ↓ speak_feed()      累积，静默 300ms 视为一段说完
+   ↓ pick_cut()        按标点切块，单块 ≤1024 字节
+   ↓ ds_tts_speak()    POST https://api.deepseek.com/v1/tools/tts
+   ↓ 响应体直接就是裸 PCM（边合成边返回），边收边攒样本
    ↓ audio_out_write_mono16()  单声道复制成双声道
-   ↓ I2S0 @16kHz 16bit
+   ↓ I2S0 @24kHz 16bit
 数字功放（MAX98357A / PCM5102 类）
    ↓
 喇叭
 ```
 
-状态经 Notify 特征回传：`OK:PLAY` / `OK:NEXT` / `OK:DONE` / `OK:STOP` / `ERR:NET` / `ERR:API` / `ERR:NOWIFI`。
+状态经 Notify 特征回传：
+
+| 通知 | 含义 |
+|---|---|
+| `OK:PLAY` | 第一块开始合成 |
+| `OK:NEXT` | 后续块开始合成 |
+| `OK:DONE` | 全部播完 |
+| `OK:STOP` | 被 `speak_stop()` 打断 |
+| `ERR:NOWIFI` | Wi-Fi 没连上 |
+| `ERR:NOKEY` | API Key 没填 |
+| `ERR:KEY` | HTTP 401/403，Key 不对 |
+| `ERR:TEXT` | HTTP 400，文本为空或没过内容审核 |
+| `ERR:BUSY` | HTTP 429，并发请求超限 |
+| `ERR:SRV` | HTTP 503/504，服务繁忙或合成超时 |
+| `ERR:NET` | 其它网络/解析错误 |
 
 ---
 
@@ -68,8 +82,11 @@
 
 ### 3.2 关于功放增益
 
-MAX98357A 板上有个 GAIN 焊盘/电阻，默认 9dB。嫌声音小就按模块丝印改到 12/15dB，
-比在软件里拉 `volume_ratio` 更干净（后者只是数字增益，拉满会削波）。
+MAX98357A 板上有个 GAIN 焊盘/电阻，默认 9dB。嫌声音小就按模块丝印改到 12/15dB。
+
+**这是本模块唯一的音量调节手段**——DeepSeek 的 TTS 接口不支持软件调音量，
+所以音量只能在硬件侧定。如果想做软件音量，得在 `audio_out_write_mono16()` 里对
+样本乘一个系数（注意留余量，乘太大会削波失真）。
 
 ---
 
@@ -81,84 +98,83 @@ MAX98357A 板上有个 GAIN 焊盘/电阻，默认 9dB。嫌声音小就按模�
 2. 浏览器打开 **http://192.168.4.1/**
 3. 四个页签：
    - **连接**：填 Wi-Fi 名称和密码（只支持 2.4GHz，5GHz 连不上）
-   - **引擎**：填火山 AppID / Access Token / cluster
-   - **音色**：填 `voice_type`，调语速和音量
+   - **引擎**：填 DeepSeek **API Key**（`sk-` 开头，只有一个字段）
+   - **音色**：选 `stella`（海星·女声）或 `tide`（暗潮·男声）
    - **试听**：输入一句话点播放，直接听效果；下面还有设备状态表和恢复出厂
 
 为什么热点常开：路由器换密码、搬家、改了 SSID 之后，STA 连不上时设备不会失联，
 手机连上热点就能改配置——比"配错就成砖"友好得多。
 
 配置全部存 NVS（namespace `lcfg`），掉电不丢。**源码和仓库里不出现任何密钥。**
+控制台只回 `has_key` 布尔值，**从不把 Key 本身回传给前端**。
 
 ---
 
-## 5. 云端接口（火山引擎）
+## 5. 云端接口（DeepSeek）
 
-来源：[大模型 HTTP 非流式接口-V1](https://www.volcengine.cn/docs/DoubaoVoice/HTTPone-timecompositenon-streaminginterface-V1notrecommended)、[鉴权方法](https://docs.volcengine.com/docs/DoubaoVoice/Authenticationmethod)
+来源：[语音合成指南](https://api-docs.deepseek.com/zh-cn/guides/tts/)、[API 参考](https://api-docs.deepseek.com/api/tts)
 
 ```
-POST https://openspeech.bytedance.com/api/v1/tts
-Authorization: Bearer; {access_token}      ← 分号分隔，不是空格
+POST https://api.deepseek.com/v1/tools/tts
+Authorization: Bearer <API_KEY>        ← 空格分隔，标准写法
 Content-Type: application/json
 ```
 
 ```json
 {
-  "app":     {"appid":"...", "token":"...", "cluster":"volcano_tts"},
-  "user":    {"uid":"esp32s31"},
-  "audio":   {"voice_type":"BV700_streaming", "encoding":"pcm", "rate":16000,
-              "speed_ratio":1.0, "volume_ratio":1.0},
-  "request": {"reqid":"<32位随机hex>", "text":"...", "text_type":"plain", "operation":"query"}
+  "text": "你好，我是语音合成模块",
+  "voice_id": "stella",
+  "format": "pcm",
+  "filter_markdown": true
 }
 ```
 
-返回体是 JSON，音频在 `data` 字段里，base64 编码：
+**响应体就是音频本身**，不是 JSON：
 
-```json
-{"code":3000, "message":"Success", "data":"<base64>", "addition":{"duration":"..."}}
-```
+| format | 返回 |
+|---|---|
+| `pcm`（本模块用） | 裸流，24 kHz / 16 bit / 单声道 / 有符号小端，`Content-Type: audio/pcm` |
+| `wav`（默认） | 带头的 WAV，`Content-Type: audio/wav` |
 
-几个关键约束（都写进代码里了）：
+关键约束（都写进代码了）：
 
-- `audio.encoding` 取 `pcm`，`audio.rate` 取 `16000`，输出就是 16bit 小端单声道裸 PCM，正好能直接推 I2S，**不用 MP3 解码器**
-- `request.reqid` 每次必须唯一，代码用 4 个 `esp_random()` 拼 32 位 hex
-- `text` 上限 1024 UTF-8 字节
-- **V1 不支持大模型音色**（`zh_female_*_bigtts` 这类），填了会返回错误。要那些音色得上 V3 接口
-- 业务码 `code == 3000` 才算成功
+- **音频边合成边返回**，所以不用等整段合成完才出声，首包延迟很低
+- 单次请求上限：**10000 计费字符**、请求体 **64 KiB**、音频 **30 分钟**
+- 一个账号同时最多 **50 个在途请求**，超了返回 429
+- `format=pcm` 的采样率**固定 24 kHz**，没有参数可调——所以 `AUDIO_SAMPLE_RATE` 写死 24000
+- **不支持调语速，也不支持中断后续传**（官方原文）
+- `filter_markdown` 默认 true，会把 `*`、`#` 这类 Markdown 符号去掉不念出来
+
+计费（官网价目）：每 1 万字符 $0.45，限时五折 $0.225。**一个汉字算 2 个字符**，
+其他字符（字母、数字、空格）算 1 个。
 
 ---
 
 ## 6. 两个刻意的设计取舍
 
-### 6.1 不用 cJSON，改成流式扫 JSON
+### 6.1 不做 JSON / base64 解析
 
-V1 是**非流式**接口：整段文本合成完，一次性把整段音频 base64 塞进 JSON 返回。
-一段 5 秒的 16kHz 16bit PCM 约 160 KB，base64 后 213 KB。
+上一版接的是火山 V1，那个接口把整段音频 base64 塞进 JSON 的 `data` 字段，
+必须用状态机流式扫描 + 增量 base64 解码才塞得进 SRAM。
 
-而本工程 `CONFIG_SPIRAM` 是关的（`# CONFIG_SPIRAM is not set`），SRAM 只有几百 KB，
-Wi-Fi + TLS 还要吃掉一大半。用 cJSON 就得先把整个响应体读进内存再 parse，必 OOM。
+DeepSeek 这个接口直接返回裸 PCM，**这两个环节整个删掉了**：
+读到多少字节就拼成样本推 I2S，省掉一层缓冲和一套解码器，出错面也小得多。
 
-所以 `volc_tts.c` 用状态机流式扫描：
+内存占用：读缓冲 1 KB + 样本缓冲 1 KB + 请求体 ~2.3 KB，
+全程不缓存整段音频（本工程 `CONFIG_SPIRAM` 是关的，一段 20 秒语音就有 960 KB，
+攒在内存里必 OOM）。
 
-```
-找 "code":  → 确认 3000
-找 "data":" → 进入 base64 段
-之后逐字符 base64 解码（4 字符 → 3 字节），解出多少 PCM 就立刻写 I2S
-```
+### 6.2 按标点切块，而不是按句切
 
-峰值内存只有几 KB（读缓冲 1 KB + PCM 块 1 KB + 请求体 2 KB）。
+音频既然是流式返回的，理论上整段丢进去最省事——中间没有任何断点。
 
-### 6.2 必须分句
+但单次请求有上限，而且**一次失败会丢掉整段**。所以按 **1024 字节**（约 340 汉字）切块：
 
-V1 不流式，整段丢过去就得等整段合成完才出声——10 秒的话要等 10 秒。
-所以按标点切成短句逐句请求，第一句几百毫秒就能开口。
+- 切点优先取块尾之前最后一个标点，且不能太靠前（≥ 1/3 位置）
+- 找不到合适标点就硬切，但**必须退到 UTF-8 字符边界**，不会把一个汉字劈成两半
+- 正常一两句话的输入只会切成一块，听感上是连续的一段
 
-切句在 `speak.c::split_sentence()`，规则：
-- 认中英文标点（`。，！？；、：` 和 `.!?;:`）
-- 片段短于 12 字节不单独成句，避免碎成语气词
-- 单句硬上限 220 字节，且**只在 UTF-8 字符边界切**，不会把一个汉字劈成两半
-
-代价是句间有约 200~500 ms 的请求空档。想消掉得做下一句预取，目前没做。
+实现见 `speak.c::pick_cut()`。
 
 ---
 
@@ -180,6 +196,7 @@ flash.bat -Monitor
 cd /d "C:\Users\yyn\Desktop\ESP32-S31  ks\音色"
 idf.py --preview set-target esp32s31
 set IDF_PY_BUILD_JOBS=3
+idf.py --preview bootloader
 idf.py --preview build
 idf.py --preview -p COM8 flash
 ```
@@ -190,7 +207,7 @@ idf.py --preview -p COM8 flash
   （`CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y`、`CONFIG_ESP_CONSOLE_UART_NUM=-1`）。
   要看日志请插板子的**原生 USB 口**，会出现一个 Espressif CDC 端口。
 
-### 7.3 本机编译踩到的两个坑
+### 7.3 本机编译踩到的三个坑
 
 **坑一：默认分区装不下。** 同时编进 Wi-Fi + NimBLE + mbedTLS 根证书包后，app 二进制
 `0x1a3b70`（1.64 MB），而默认 `SINGLE_APP_LARGE` 的 factory 只有 `0x177000`（1.47 MB），
@@ -212,15 +229,30 @@ idf.py --preview bootloader
 idf.py --preview build
 ```
 
-### 7.4 编译实测（2026-11-23）
+**坑三：中文目录名编不过（重要）。** 目录改名成 `音色` 之后：
+
+- PowerShell 5.1 调 `idf.py` 时把路径按 ANSI 转码，CMake 收到的是 `闊宠壊`
+- 换成 cmd 直调也过不了：`riscv32-esp-elf-gcc` 报
+  `cannot read spec file '...\x0a\build\...\picolibc.specs'`，中文被转成了换行符
+- 目录联接（junction）会被 CMake 解析回真实中文路径；`dir /x` 也没有生成 8.3 短名
+
+结论：**ESP-IDF 的工具链链路处理不了非 ASCII 路径**，`config` 能过、`build` 过不了。
+要编译就把工程放到纯 ASCII 路径（例如 `C:\espwork\yinse`），或在仓库里保留英文目录名。
+
+### 7.4 编译实测（2026-11-24，DeepSeek 版）
+
+因为坑三，这次编译是在纯 ASCII 路径 `C:\espwork\yinse` 下做的，源码与 `音色/` 逐字节一致（`diff -r` 无差异）。
 
 | 项 | 结果 |
 |---|---|
-| app 二进制 | `0x1a3b70` = 1,719,152 字节（1.64 MB） |
-| app 分区 | `0x400000`（4 MB），剩余 `0x25c490`（59%） |
+| 编译结果 | `Project build complete`，0 error / 0 warning |
+| app 二进制 | `0x1a2990` = 1,714,576 字节（1.64 MB） |
+| app 分区 | `0x400000`（4 MB），剩余 `0x25d670`（59%） |
 | bootloader | `0x4cc0`（19.6 KB），剩余 20% |
-| 编译告警 | 0 |
-| 分区表 | 已验证二进制：nvs `0x9000/0x6000`、phy_init `0xf000/0x1000`、factory `0x10000/0x400000` |
+| 源码 | 7 个 .c 全部编过，含 `ds_tts.c`（新）、`cfg_store.c`、`speak.c`、`wifi_prov.c` |
+| 分区表 | `factory` @ `0x10000`，size `0x400000`（4 MB），已用 `od` 核对二进制 |
+
+烧录偏移与旧版一致：bootloader `0x2000`、partition-table `0x8000`、app `0x10000`。
 
 ---
 
@@ -228,7 +260,7 @@ idf.py --preview build
 
 1. 手机连 `kskbl-setup`，开 http://192.168.4.1/
 2. 「连接」页填 Wi-Fi，保存 → 徽章变绿，状态表里出现 IP
-3. 「引擎」页填 AppID 和 Token，保存 → 「引擎 就绪」
+3. 「引擎」页填 DeepSeek API Key，保存 → 「引擎 就绪」
 4. 「试听」页点播放 → 喇叭出声
 5. 手机 BLE 助手连 `kskbl zdjd`，订阅 `6a400003…` 的 CCCD
 6. 往 `6a400002…` 写中文，例如 `你好，我是语音合成模块`
@@ -238,11 +270,13 @@ idf.py --preview build
 
 ## 9. 已知限制
 
-- **V1 非流式**，首句延迟取决于云端合成速度，实测几百毫秒；长句更慢
-- **不支持大模型音色**，只能用 BV 系列；要 `zh_female_*_bigtts` 得改用 V3 WebSocket 接口
-- **句间有停顿**，没做预取
-- **未开 PSRAM**，靠流式解码压内存；若以后要缓存整段音频或做预取，得先确认板子有没有 PSRAM 并打开 `CONFIG_SPIRAM`
-- **未实机验证**：编译已通过（0 error / 0 warning），但云端密钥、I2S 功放出声、配网流程都还需要接上实物跑一遍
+- **只有两个音色**（stella 女声 / tide 男声），这是 DeepSeek 接口的全部
+- **不能调语速和音量**，官方明确写「不支持调节语速」。要调音量只能在软件里乘系数，
+  或改功放增益焊盘
+- **不支持断点续传**：音频已经开始返回后如果合成失败，响应会中途断开，
+  这一块就缺一截（代码会把提前结束当成失败报出来）
+- **`stella` 是女声，中文读法偏书面**，实测之前建议先用「试听」页听一遍
+- **未实机验证**：编译已通过，但 API Key、I2S 功放出声、配网流程都还需要接上实物跑一遍
 
 ---
 
@@ -250,11 +284,11 @@ idf.py --preview build
 
 | 内容 | 来源 |
 |---|---|
-| TTS 接口、参数、鉴权 | [火山官方文档 V1](https://www.volcengine.cn/docs/DoubaoVoice/HTTPone-timecompositenon-streaminginterface-V1notrecommended) / [鉴权方法](https://docs.volcengine.com/docs/DoubaoVoice/Authenticationmethod) |
+| TTS 接口、参数、音色、限制 | [DeepSeek 语音合成指南](https://api-docs.deepseek.com/zh-cn/guides/tts/) / [API 参考](https://api-docs.deepseek.com/api/tts) |
+| 计费与五折 | 同上文档的 Billing 章节 |
 | BLE 服务与 UUID | 沿用本仓库 `串口/`、`喇叭/` 同一套：`6a400001/0002/0003-b5a3-f393-e0a9-e50e24dcca9e`，广播名 `kskbl zdjd` |
 | GPIO29/41 不可用 | `esp-idf/components/soc/esp32s31/include/soc/soc_caps.h` 第 235 行 `SOC_GPIO_VALID_GPIO_MASK`，第 241 行注释 *excluding GPIO29/41 which are not bonded* |
 | I2S API | `esp-idf/components/esp_driver_i2s/include/driver/i2s_std.h`（`I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG` 等） |
 | Flash / 芯片 | 实机 `esptool` 输出：`ESP32-S31 (revision v0.0)`、16MB flash、MAC `1c:29:04:d0:40:52` |
 
-音色 ID 只列了官方文档示例中出现过的 `BV700_streaming`；其余音色请从火山控制台「音色列表」复制，
-本仓库不臆造未经验证的音色名。
+音色只列官方文档给出的 `stella` 和 `tide`，本仓库不臆造未经验证的音色名。

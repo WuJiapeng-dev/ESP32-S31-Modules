@@ -1,5 +1,11 @@
 /*
- * speak.c - 文本累积、分句、逐句合成播放
+ * speak.c - 文本累积、切块、逐块合成播放
+ *
+ * 为什么还要切块：
+ *   DeepSeek 的 TTS 是边合成边返回音频的，本来一整段丢进去最省事（中间没有断点）。
+ *   但单次请求有 10000 计费字符 / 64 KiB 的上限，而且一次失败会丢掉整段。
+ *   所以按 DS_TEXT_MAX（1024 字节，约 340 汉字）切块，切点优先落在标点上，
+ *   正常一两句话的输入只会切成一块，听感上是连续的一段。
  */
 #include <stdio.h>
 #include <string.h>
@@ -14,17 +20,15 @@
 #include "audio_out.h"
 #include "ble_bridge.h"
 #include "cfg_store.h"
+#include "ds_tts.h"
 #include "speak.h"
-#include "volc_tts.h"
 #include "wifi_prov.h"
 
 static const char *TAG = "speak";
 
-#define TEXT_MAX            1024        /* 和火山 V1 的 text 上限对齐 */
-#define SILENCE_MS          300         /* 多久没新数据就算一句说完 */
-#define SENT_MAX            220         /* 单句字节上限，远低于火山 1024 上限 */
-#define SENT_MIN_CUT        12          /* 太短的片段不单独成句，避免碎成一堆语气词 */
-#define TASK_STACK          12288       /* TLS 握手吃栈，必须给足 */
+#define TEXT_MAX            DS_TEXT_MAX     /* 一次累积的上限，与单次请求上限一致 */
+#define SILENCE_MS          300             /* 多久没新数据就算一句说完 */
+#define TASK_STACK          12288           /* TLS 握手吃栈，必须给足 */
 #define TASK_PRIO           5
 #define POLL_MS             50
 
@@ -36,7 +40,7 @@ static volatile bool     s_stop_req;
 static volatile bool     s_busy;
 static app_cfg_t         s_cfg;
 
-/* ---------------------------- 分句 ---------------------------- */
+/* ---------------------------- 切块 ---------------------------- */
 /* 中文标点都是 3 字节 UTF-8，这里列出常见句读 */
 static const char *const PUNCT[] = {
     "。", "，", "！", "？", "；", "、", "：", "…", "—", "）", "》",
@@ -68,52 +72,38 @@ static bool is_cont(const char *p)
 }
 
 /*
- * 从 text 里切一句出来。
- * 返回写入 out 的字节数（0 表示没有更多内容），*consumed 为消耗的输入字节数。
+ * 决定这一块切多少字节。
+ * len 不超过 cap 就直接全要；否则优先取 cap 之前最后一个标点（且不能太靠前），
+ * 找不到合适标点就硬切，但必须退到 UTF-8 字符边界上。
  */
-static size_t split_sentence(const char *text, size_t len,
-                             size_t *consumed, char *out, size_t cap)
+static size_t pick_cut(const char *text, size_t len, size_t cap)
 {
+    if (len <= cap) {
+        return len;
+    }
+
+    size_t cut = 0;
     size_t i = 0;
-    size_t o = 0;
-
-    /* 跳过前导空白 */
-    while (i < len && (text[i] == ' ' || text[i] == '\n' || text[i] == '\r' ||
-                       text[i] == '\t')) {
-        i++;
-    }
-    if (i >= len) {
-        *consumed = i;
-        return 0;
-    }
-
-    while (i < len && o + 4 < cap) {
+    while (i < cap) {
         size_t pl = punct_len(text + i, len - i);
-        if (pl > 0) {
-            memcpy(out + o, text + i, pl);
-            o += pl;
+        if (pl > 0 && i + pl <= cap) {
+            if (i >= cap / 3) {
+                cut = i + pl;       /* 记下最后一个够靠后的标点 */
+            }
             i += pl;
-            if (o >= SENT_MIN_CUT) {
-                break;      /* 够长就断在这里 */
-            }
-            continue;       /* 太短则连带标点一起继续攒 */
-        }
-        out[o++] = text[i++];
-        if (o >= SENT_MAX) {
-            /* 硬断，但不能切在 UTF-8 多字节字符中间 */
-            while (i < len && is_cont(text + i)) {
-                if (o + 1 >= cap) {
-                    break;
-                }
-                out[o++] = text[i++];
-            }
-            break;
+        } else {
+            i++;
         }
     }
+    if (cut > 0) {
+        return cut;
+    }
 
-    out[o] = '\0';
-    *consumed = i;
-    return o;
+    cut = cap;
+    while (cut > 1 && is_cont(text + cut)) {
+        cut--;                      /* 不能切在多字节字符中间 */
+    }
+    return cut;
 }
 
 /* ---------------------------- 音频回调 ---------------------------- */
@@ -126,6 +116,30 @@ static esp_err_t on_pcm(const int16_t *pcm, size_t samples, void *user)
     return audio_out_write_mono16(pcm, samples);
 }
 
+/* 把 HTTP 状态码翻译成手机端看得懂的提示 */
+static void notify_http_error(int status)
+{
+    switch (status) {
+    case 401:
+    case 403:
+        ble_bridge_notify("ERR:KEY");       /* key 不对或没权限 */
+        break;
+    case 400:
+        ble_bridge_notify("ERR:TEXT");      /* 文本为空或没过内容审核 */
+        break;
+    case 429:
+        ble_bridge_notify("ERR:BUSY");      /* 并发请求超限 */
+        break;
+    case 503:
+    case 504:
+        ble_bridge_notify("ERR:SRV");       /* 服务忙 / 合成超时 */
+        break;
+    default:
+        ble_bridge_notify("ERR:NET");
+        break;
+    }
+}
+
 /* ---------------------------- 播放一段 ---------------------------- */
 static bool speak_one_text(const char *text, size_t len)
 {
@@ -134,37 +148,48 @@ static bool speak_one_text(const char *text, size_t len)
         ble_bridge_notify("ERR:NOWIFI");
         return false;
     }
+    if (!cfg_ready(&s_cfg)) {
+        ESP_LOGE(TAG, "API Key 未配置");
+        ble_bridge_notify("ERR:NOKEY");
+        return false;
+    }
 
     size_t off = 0;
-    int sentences = 0;
-    char sent[SENT_MAX + 8];
+    int chunks = 0;
+    char buf[DS_TEXT_MAX + 1];
 
     while (off < len) {
         if (s_stop_req) {
-            ESP_LOGW(TAG, "收到停止请求，中断剩余句子");
+            ESP_LOGW(TAG, "收到停止请求，中断剩余内容");
             break;
         }
 
-        size_t consumed = 0;
-        size_t n = split_sentence(text + off, len - off, &consumed, sent, sizeof(sent));
-        if (n == 0 || consumed == 0) {
+        /* 跳过块首空白 */
+        while (off < len && (text[off] == ' ' || text[off] == '\n' ||
+                             text[off] == '\r' || text[off] == '\t')) {
+            off++;
+        }
+        if (off >= len) {
             break;
         }
-        off += consumed;
 
-        ESP_LOGI(TAG, "第 %d 句 (%u 字节): %.40s", ++sentences, (unsigned)n, sent);
-        ble_bridge_notify(sentences == 1 ? "OK:PLAY" : "OK:NEXT");
+        size_t n = pick_cut(text + off, len - off, DS_TEXT_MAX);
+        if (n == 0) {
+            break;
+        }
+        memcpy(buf, text + off, n);
+        buf[n] = '\0';
+        off += n;
 
-        volc_result_t r;
-        esp_err_t err = volc_tts_speak(&s_cfg, sent, on_pcm, NULL, &r);
+        ESP_LOGI(TAG, "第 %d 块 (%u 字节): %.40s", ++chunks, (unsigned)n, buf);
+        ble_bridge_notify(chunks == 1 ? "OK:PLAY" : "OK:NEXT");
+
+        ds_result_t r;
+        esp_err_t err = ds_tts_speak(&s_cfg, buf, on_pcm, NULL, &r);
         if (err != ESP_OK) {
-            ESP_LOGE(TAG, "第 %d 句合成失败: %s (code=%d)", sentences,
-                     esp_err_to_name(err), r.api_code);
-            if (r.api_code != 0 && r.api_code != 3000) {
-                ble_bridge_notify("ERR:API");
-            } else {
-                ble_bridge_notify("ERR:NET");
-            }
+            ESP_LOGE(TAG, "第 %d 块合成失败: %s (http=%d)",
+                     chunks, esp_err_to_name(err), r.http_status);
+            notify_http_error(r.http_status);
             return false;
         }
     }
@@ -297,7 +322,7 @@ void speak_reload_cfg(void)
     app_cfg_t tmp;
     if (cfg_load(&tmp) == ESP_OK) {
         s_cfg = tmp;
-        ESP_LOGI(TAG, "配置已重新加载: voice=%s speed=%u vol=%u",
-                 s_cfg.voice, s_cfg.speed_x100, s_cfg.volume_x100);
+        ESP_LOGI(TAG, "配置已重新加载: voice=%s key=%s",
+                 s_cfg.voice, s_cfg.api_key[0] ? "(已设置)" : "(空)");
     }
 }

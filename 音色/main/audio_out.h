@@ -10,8 +10,8 @@
  *
  * 说明：
  *   - 语音链路只覆盖 GPIO15/16/17，避开 UART0(58/59)、USB PHY(33/34)、
- *     原 SYN6288 用的 GPIO8/9/12，隔壁 laba 模块的线不用拆。
- *   - 火山 TTS 返回单声道 16bit PCM；这里输出立体声并把同一份样本复制到
+ *     原 SYN6288 用的 GPIO8/9/12，隔壁喇叭模块的线不用拆。
+ *   - DeepSeek TTS 返回单声道 16bit PCM；这里输出立体声并把同一份样本复制到
  *     L/R 两个 slot，兼容 MAX98357A 这类会把左右混合的功放。
  */
 #pragma once
@@ -25,8 +25,8 @@
 #define AUDIO_I2S_LRC_GPIO      16
 #define AUDIO_I2S_DIN_GPIO      17
 
-/* 火山 audio.rate 只支持 8000 / 16000 / 24000，默认取 16000 */
-#define AUDIO_SAMPLE_RATE       16000
+/* DeepSeek format=pcm 固定 24kHz、16bit、单声道，不可调 */
+#define AUDIO_SAMPLE_RATE       24000
 
 esp_err_t audio_out_init(void);
 

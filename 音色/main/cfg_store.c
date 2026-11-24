@@ -14,12 +14,8 @@ static const char *TAG = "cfg";
 #define NVS_NS      "lcfg"
 #define K_SSID      "ssid"
 #define K_PASS      "pass"
-#define K_APPID     "appid"
-#define K_TOKEN     "token"
-#define K_CLUSTER   "cluster"
+#define K_APIKEY    "apikey"
 #define K_VOICE     "voice"
-#define K_SPEED     "speed"
-#define K_VOLUME    "volume"
 
 void cfg_set_defaults(app_cfg_t *c)
 {
@@ -27,10 +23,7 @@ void cfg_set_defaults(app_cfg_t *c)
         return;
     }
     memset(c, 0, sizeof(*c));
-    strlcpy(c->cluster, CFG_CLUSTER_DEFAULT, sizeof(c->cluster));
     strlcpy(c->voice, CFG_VOICE_DEFAULT, sizeof(c->voice));
-    c->speed_x100  = 100;
-    c->volume_x100 = 100;
 }
 
 /* 统一读一个字符串键：不存在就保留默认值 */
@@ -48,14 +41,6 @@ static void read_str(nvs_handle_t h, const char *key, char *dst, size_t cap)
     }
     /* nvs_get_str 已保证以 0 结尾，这里再兜一层 */
     dst[cap - 1] = '\0';
-}
-
-static void read_u16(nvs_handle_t h, const char *key, uint16_t *dst)
-{
-    uint16_t v = 0;
-    if (nvs_get_u16(h, key, &v) == ESP_OK && v > 0) {
-        *dst = v;
-    }
 }
 
 esp_err_t cfg_load(app_cfg_t *c)
@@ -76,19 +61,23 @@ esp_err_t cfg_load(app_cfg_t *c)
 
     read_str(h, K_SSID, c->wifi_ssid, sizeof(c->wifi_ssid));
     read_str(h, K_PASS, c->wifi_pass, sizeof(c->wifi_pass));
-    read_str(h, K_APPID, c->appid, sizeof(c->appid));
-    read_str(h, K_TOKEN, c->token, sizeof(c->token));
-    read_str(h, K_CLUSTER, c->cluster, sizeof(c->cluster));
+    read_str(h, K_APIKEY, c->api_key, sizeof(c->api_key));
     read_str(h, K_VOICE, c->voice, sizeof(c->voice));
-    read_u16(h, K_SPEED, &c->speed_x100);
-    read_u16(h, K_VOLUME, &c->volume_x100);
 
     nvs_close(h);
 
-    ESP_LOGI(TAG, "配置: ssid=%s appid=%s voice=%s speed=%u vol=%u",
+    /* 老固件（火山版）存过 voice=BV700_streaming 之类的值，换了引擎就不合法了，
+     * 这里直接回落，否则会一直拿着无效音色去请求，每次都被 400 打回来 */
+    if (!cfg_voice_valid(c->voice)) {
+        ESP_LOGW(TAG, "音色 \"%s\" 不是 DeepSeek 的合法值，回落到 %s",
+                 c->voice, CFG_VOICE_DEFAULT);
+        strlcpy(c->voice, CFG_VOICE_DEFAULT, sizeof(c->voice));
+    }
+
+    ESP_LOGI(TAG, "配置: ssid=%s key=%s voice=%s",
              c->wifi_ssid[0] ? c->wifi_ssid : "(空)",
-             c->appid[0] ? c->appid : "(空)",
-             c->voice, c->speed_x100, c->volume_x100);
+             c->api_key[0] ? "(已设置)" : "(空)",
+             c->voice);
     return ESP_OK;
 }
 
@@ -106,12 +95,8 @@ esp_err_t cfg_save(const app_cfg_t *c)
     /* 任一字段写失败都直接返回，避免存半套配置 */
     err = nvs_set_str(h, K_SSID, c->wifi_ssid);
     if (err == ESP_OK) { err = nvs_set_str(h, K_PASS, c->wifi_pass); }
-    if (err == ESP_OK) { err = nvs_set_str(h, K_APPID, c->appid); }
-    if (err == ESP_OK) { err = nvs_set_str(h, K_TOKEN, c->token); }
-    if (err == ESP_OK) { err = nvs_set_str(h, K_CLUSTER, c->cluster); }
+    if (err == ESP_OK) { err = nvs_set_str(h, K_APIKEY, c->api_key); }
     if (err == ESP_OK) { err = nvs_set_str(h, K_VOICE, c->voice); }
-    if (err == ESP_OK) { err = nvs_set_u16(h, K_SPEED, c->speed_x100); }
-    if (err == ESP_OK) { err = nvs_set_u16(h, K_VOLUME, c->volume_x100); }
     if (err == ESP_OK) { err = nvs_commit(h); }
 
     nvs_close(h);
@@ -125,9 +110,17 @@ bool cfg_ready(const app_cfg_t *c)
 {
     return c != NULL
         && c->wifi_ssid[0] != '\0'
-        && c->appid[0] != '\0'
-        && c->token[0] != '\0'
-        && c->voice[0] != '\0';
+        && c->api_key[0] != '\0'
+        && cfg_voice_valid(c->voice);
+}
+
+bool cfg_voice_valid(const char *voice)
+{
+    if (voice == NULL) {
+        return false;
+    }
+    return strcmp(voice, CFG_VOICE_STELLA) == 0
+        || strcmp(voice, CFG_VOICE_TIDE) == 0;
 }
 
 esp_err_t cfg_erase(void)

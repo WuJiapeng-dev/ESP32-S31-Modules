@@ -4,7 +4,7 @@
  * 运行形态：APSTA
  *   AP 侧常驻热点 kskbl-setup（192.168.4.1），手机随时可以连上来打开控制台，
  *   改配置、试听、看状态。这样即使路由器换了密码导致 STA 掉线，也不会失联。
- *   STA 侧负责联网调火山 TTS。
+ *   STA 侧负责联网调 DeepSeek 语音合成。
  *
  * 视觉风格对齐用户既有的《小智 AI 控制台》：
  *   配色 token（--bg/--blue/--teal…）、12px 圆角卡片、badge 徽章、note 提示条、chip 胶囊。
@@ -134,34 +134,27 @@ static const char PAGE_HTML[] =
 "</div></section>"
 
 "<section class='view' id='vEng'><div class='card'>"
-"<h2>火山引擎语音合成</h2>"
-"<p class='desc'>控制台 → 语音技术 → 语音合成 → 应用管理，AppID 与 Access Token 成对出现。</p>"
-"<div class='field'><label class='f'>AppID</label>"
-"<input id='appid' maxlength='39' placeholder='例如 1234567890'></div>"
-"<div class='field'><label class='f'>Access Token</label>"
-"<input id='token' maxlength='159' placeholder='一长串字符，通常以 = 结尾'></div>"
-"<div class='field'><label class='f'>Cluster</label>"
-"<input id='cluster' maxlength='31' value='volcano_tts'></div>"
-"<div class='note'>鉴权头是 <code>Bearer; token</code>，中间是<b>分号</b>不是空格。这个坑固件里已经处理好了。</div>"
+"<h2>DeepSeek 语音合成</h2>"
+"<p class='desc'>platform.deepseek.com → 左侧 API keys → 创建，得到一串 sk- 开头的密钥。"
+"语音合成与对话共用同一个 Key。</p>"
+"<div class='field'><label class='f'>API Key</label>"
+"<input id='key' maxlength='127' placeholder='sk-xxxxxxxxxxxxxxxx' autocomplete='off'></div>"
+"<div class='note'>只需要一个 Key，没有 AppID / Token / cluster 那一套。"
+"鉴权头是 <code>Bearer &lt;key&gt;</code>，空格分隔。</div>"
 "<button class='btn primary' id='btnEng'>保存</button>"
 "</div></section>"
 
 "<section class='view' id='vVoice'><div class='card'>"
-"<h2>音色与语速</h2>"
-"<p class='desc'>V1 接口只认标准音色（BV 前缀）。大模型音色（<code>zh_female_*_bigtts</code>）"
-"要 V3 接口，这里填了会报错。</p>"
-"<div class='field'><label class='f'>voice_type</label>"
-"<input id='voice' maxlength='63' value='BV700_streaming'></div>"
+"<h2>音色</h2>"
+"<p class='desc'>DeepSeek 目前只有两个发音人，没有更多可选。</p>"
 "<div class='pill-line'>"
-"<span class='chip' data-v='BV700_streaming'>BV700_streaming</span>"
-"<span class='chip' data-v='BV001_streaming'>BV001_streaming</span>"
-"<span class='chip' data-v='BV005_streaming'>BV005_streaming</span>"
+"<span class='chip on' data-v='stella'>海星 · 女声</span>"
+"<span class='chip' data-v='tide'>暗潮 · 男声</span>"
 "</div>"
-"<div class='field'><label class='f'>语速 <b id='speedV'>1.0</b> ×</label>"
-"<input id='speed' type='range' min='0.5' max='2' step='0.1' value='1'></div>"
-"<div class='field'><label class='f'>音量 <b id='volV'>1.0</b> ×</label>"
-"<input id='volume' type='range' min='0.5' max='3' step='0.1' value='1'></div>"
-"<div class='note'>上面三个只是示例。其余音色 ID 请在火山控制台「音色列表」复制，粘到输入框即可。</div>"
+"<div class='field'><label class='f'>voice_id</label>"
+"<input id='voice' maxlength='15' value='stella' readonly></div>"
+"<div class='note warn'>这个接口<b>不支持调语速和音量</b>，官网上写明了。"
+"要变速只能改文本本身（比如加「慢一点说」这类提示对 TTS 无效，实际得靠标点控制停顿）。</div>"
 "<button class='btn primary' id='btnVoice'>保存</button>"
 "</div></section>"
 
@@ -190,12 +183,11 @@ static const char PAGE_HTML[] =
 "document.querySelectorAll('.view').forEach(function(v){v.classList.remove('on')});"
 "$('v'+b.dataset.t.charAt(0).toUpperCase()+b.dataset.t.slice(1)).classList.add('on');"
 "})});"
+"var tVoice=0;"
 "document.querySelectorAll('.chip').forEach(function(c){c.addEventListener('click',function(){"
-"$('voice').value=c.dataset.v;"
+"$('voice').value=c.dataset.v;tVoice=1;"
 "document.querySelectorAll('.chip').forEach(function(x){x.classList.remove('on')});"
 "c.classList.add('on')})});"
-"$('speed').addEventListener('input',function(){$('speedV').textContent=(+this.value).toFixed(1)});"
-"$('volume').addEventListener('input',function(){$('volV').textContent=(+this.value).toFixed(1)});"
 "function post(url,obj){var b=new URLSearchParams();"
 "for(var k in obj){if(obj[k]!==undefined)b.set(k,obj[k])}"
 "return fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b})"
@@ -206,14 +198,13 @@ static const char PAGE_HTML[] =
 "setBadge('bEng',s.ready?'引擎 就绪':'引擎 未配置',s.ready?'b-blue':'b-amber');"
 "$('ipNote').textContent=s.wifi?('已连接 '+s.ssid+'，IP '+s.ip):'当前未连接，请填写下面的网络信息';"
 "$('ipNote').className='note'+(s.wifi?' ok':'');"
-"if(s.voice&&!state.init){$('voice').value=s.voice}"
-"if(s.appid!==undefined&&s.appid!==''){$('appid').value=s.appid}"
+"if(s.voice&&!tVoice){$('voice').value=s.voice;"
+"document.querySelectorAll('.chip').forEach(function(x){"
+"x.classList.toggle('on',x.dataset.v===s.voice)})}"
+"if(s.has_key){$('key').placeholder='已保存，留空表示不修改'}"
 "if(s.ssid){$('ssid').value=s.ssid}"
-"if(s.cluster){$('cluster').value=s.cluster}"
-"$('speed').value=(s.speed||1);$('speedV').textContent=(s.speed||1).toFixed(1);"
-"$('volume').value=(s.volume||1);$('volV').textContent=(s.volume||1).toFixed(1);"
 "var rows=[['Wi-Fi',s.wifi?('已连接 '+s.ssid):'未连接'],['IP',s.wifi?s.ip:'-'],"
-"['BLE',s.ble?'手机已连接':'广播中'],['引擎',s.ready?'配置完整':'缺少 AppID/Token'],"
+"['BLE',s.ble?'手机已连接':'广播中'],['引擎',s.ready?'配置完整':'缺少 API Key'],"
 "['音色',s.voice||'-'],['播放',s.busy?'正在播放':'空闲'],['热点','kskbl-setup (192.168.4.1)']];"
 "$('stateTable').innerHTML=rows.map(function(r){return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>'}).join('')"
 "}"
@@ -222,10 +213,10 @@ static const char PAGE_HTML[] =
 "}).catch(function(){setBadge('bWifi','控制台断开','b-red')})}"
 "$('btnConn').addEventListener('click',function(){post('/api/save',{ssid:$('ssid').value,"
 "pass:$('pass').value}).then(function(j){toast(j.ok?'已保存，正在连接…':(j.err||'失败'));setTimeout(poll,1200)})});"
-"$('btnEng').addEventListener('click',function(){post('/api/save',{appid:$('appid').value,"
-"token:$('token').value,cluster:$('cluster').value}).then(function(j){toast(j.ok?'引擎配置已保存':(j.err||'失败'));poll()})});"
-"$('btnVoice').addEventListener('click',function(){post('/api/save',{voice:$('voice').value,"
-"speed:$('speed').value,volume:$('volume').value}).then(function(j){toast(j.ok?'音色已保存':(j.err||'失败'));poll()})});"
+"$('btnEng').addEventListener('click',function(){post('/api/save',{key:$('key').value})"
+".then(function(j){toast(j.ok?'API Key 已保存':(j.err||'失败'));if(j.ok){$('key').value=''}poll()})});"
+"$('btnVoice').addEventListener('click',function(){post('/api/save',{voice:$('voice').value})"
+".then(function(j){toast(j.ok?'音色已保存':(j.err||'失败'));if(j.ok)tVoice=0;poll()})});"
 "$('btnTest').addEventListener('click',function(){post('/api/test',{text:$('text').value})"
 ".then(function(j){toast(j.ok?'已发送，留意喇叭':(j.err||'失败'))})});"
 "$('btnReset').addEventListener('click',function(){if(!confirm('确定清空全部配置？'))return;"
@@ -271,33 +262,15 @@ static void json_esc(const char *src, char *dst, size_t cap)
     dst[o] = '\0';
 }
 
-static uint16_t clamp_x100(const char *s, double lo, double hi)
-{
-    double v = atof(s);
-    if (v < lo) {
-        v = lo;
-    }
-    if (v > hi) {
-        v = hi;
-    }
-    return (uint16_t)(v * 100.0 + 0.5);
-}
-
 typedef struct {
     char ssid[CFG_SSID_MAX];
     char pass[CFG_PASS_MAX];
-    char appid[CFG_APPID_MAX];
-    char token[CFG_TOKEN_MAX];
-    char cluster[CFG_CLUSTER_MAX];
+    char key[CFG_KEY_MAX];      /* DeepSeek API Key */
     char voice[CFG_VOICE_MAX];
-    char text[512];         /* 试听文本，独立字段 */
-    uint16_t speed;
-    uint16_t volume;
+    char text[512];             /* 试听文本，独立字段 */
     bool has_wifi;
-    bool has_engine;
+    bool has_key;
     bool has_voice;
-    bool has_speed;
-    bool has_volume;
 } form_t;
 
 static void form_apply(form_t *f, const char *k, const char *v)
@@ -308,30 +281,19 @@ static void form_apply(form_t *f, const char *k, const char *v)
     } else if (strcmp(k, "pass") == 0) {
         strlcpy(f->pass, v, sizeof(f->pass));
         f->has_wifi = true;
-    } else if (strcmp(k, "appid") == 0) {
-        strlcpy(f->appid, v, sizeof(f->appid));
-        f->has_engine = true;
-    } else if (strcmp(k, "token") == 0) {
-        strlcpy(f->token, v, sizeof(f->token));
-        f->has_engine = true;
-    } else if (strcmp(k, "cluster") == 0) {
+    } else if (strcmp(k, "key") == 0) {
+        /* 留空表示「不修改」，避免用户只想改音色时把 Key 抹掉 */
         if (v[0] != '\0') {
-            strlcpy(f->cluster, v, sizeof(f->cluster));
-            f->has_engine = true;
+            strlcpy(f->key, v, sizeof(f->key));
+            f->has_key = true;
         }
     } else if (strcmp(k, "voice") == 0) {
-        if (v[0] != '\0') {
+        if (cfg_voice_valid(v)) {
             strlcpy(f->voice, v, sizeof(f->voice));
             f->has_voice = true;
         }
     } else if (strcmp(k, "text") == 0) {
         strlcpy(f->text, v, sizeof(f->text));
-    } else if (strcmp(k, "speed") == 0) {
-        f->speed = clamp_x100(v, 0.5, 2.0);
-        f->has_speed = true;
-    } else if (strcmp(k, "volume") == 0) {
-        f->volume = clamp_x100(v, 0.5, 3.0);
-        f->has_volume = true;
     }
 }
 
@@ -411,21 +373,18 @@ static esp_err_t api_state(httpd_req_t *req)
 
     char e_ssid[CFG_SSID_MAX * 2];
     char e_voice[CFG_VOICE_MAX * 2];
-    char e_cluster[CFG_CLUSTER_MAX * 2];
     json_esc(c.wifi_ssid, e_ssid, sizeof(e_ssid));
     json_esc(c.voice, e_voice, sizeof(e_voice));
-    json_esc(c.cluster, e_cluster, sizeof(e_cluster));
 
-    char buf[640];
+    char buf[512];
     snprintf(buf, sizeof(buf),
         "{\"wifi\":%d,\"ip\":\"%s\",\"ssid\":\"%s\",\"ble\":%d,\"ready\":%d,"
-        "\"voice\":\"%s\",\"cluster\":\"%s\",\"speed\":%.1f,\"volume\":%.1f,\"busy\":%d}",
+        "\"voice\":\"%s\",\"has_key\":%d,\"busy\":%d}",
         online ? 1 : 0, ip, e_ssid,
         ble_bridge_connected() ? 1 : 0,
         cfg_ready(&c) ? 1 : 0,
-        e_voice, e_cluster,
-        (double)c.speed_x100 / 100.0,
-        (double)c.volume_x100 / 100.0,
+        e_voice,
+        c.api_key[0] ? 1 : 0,       /* 只回「有没有」，Key 本身不回给前端 */
         speak_busy() ? 1 : 0);
 
     reply_json(req, buf);
@@ -449,19 +408,11 @@ static esp_err_t api_save(httpd_req_t *req)
         strlcpy(c.wifi_ssid, f.ssid, sizeof(c.wifi_ssid));
         strlcpy(c.wifi_pass, f.pass, sizeof(c.wifi_pass));
     }
-    if (f.has_engine) {
-        strlcpy(c.appid, f.appid, sizeof(c.appid));
-        strlcpy(c.token, f.token, sizeof(c.token));
-        strlcpy(c.cluster, f.cluster, sizeof(c.cluster));
+    if (f.has_key) {
+        strlcpy(c.api_key, f.key, sizeof(c.api_key));
     }
     if (f.has_voice) {
         strlcpy(c.voice, f.voice, sizeof(c.voice));
-    }
-    if (f.has_speed) {
-        c.speed_x100 = f.speed;
-    }
-    if (f.has_volume) {
-        c.volume_x100 = f.volume;
     }
 
     esp_err_t err = cfg_save(&c);
@@ -471,7 +422,7 @@ static esp_err_t api_save(httpd_req_t *req)
     }
     speak_reload_cfg();
 
-    /* Wi-Fi 变了就重连；引擎/音色只需刷配置 */
+    /* Wi-Fi 变了就重连；Key / 音色只需刷配置 */
     if (f.has_wifi && c.wifi_ssid[0] != '\0') {
         wifi_sta_connect(c.wifi_ssid, c.wifi_pass);
     }
@@ -494,7 +445,7 @@ static esp_err_t api_test(httpd_req_t *req)
     }
     app_cfg_t c;
     if (cfg_load(&c) != ESP_OK || !cfg_ready(&c)) {
-        reply_json(req, "{\"ok\":0,\"err\":\"AppID/Token 未配置\"}");
+        reply_json(req, "{\"ok\":0,\"err\":\"API Key 未配置\"}");
         return ESP_OK;
     }
 

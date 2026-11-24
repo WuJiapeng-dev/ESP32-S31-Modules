@@ -1,8 +1,8 @@
 # ============================================================
-# ESP32-S31 云端语音合成（火山引擎 TTS + I2S 功放）/ 默认配置
+# ESP32-S31 云端语音合成（DeepSeek TTS + I2S 功放）/ 默认配置
 # 说明：
 # 1) 目标芯片 esp32s31 由 idf.py --preview set-target 决定
-# 2) console 挪到 USB Serial/JTAG，UART0 完全让位（与 chuankou / laba 模块策略一致）
+# 2) console 挪到 USB Serial/JTAG，UART0 完全让位（与串口 / 喇叭模块策略一致）
 # 3) 本模块不用 SYN6288，I2S 走 GPIO15/16/17，不占用 UART0/1
 # ============================================================
 
@@ -36,10 +36,10 @@ CONFIG_BT_NIMBLE_GAP_SERVICE=y
 CONFIG_BT_NIMBLE_EXT_ADV=y
 CONFIG_BT_NIMBLE_MAX_CONNECTIONS=2
 
-# ---------- HTTPS：内置根证书包（火山接口是 https）----------
+# ---------- HTTPS：内置根证书包（DeepSeek 接口是 https）----------
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE=y
 CONFIG_MBEDTLS_CERTIFICATE_BUNDLE_DEFAULT_FULL=y
-# TLS 握手缓冲按实际下调，省 SRAM（火山证书链不长）
+# TLS 握手缓冲按实际下调，省 SRAM（DeepSeek 证书链不长）
 CONFIG_MBEDTLS_SSL_IN_CONTENT_LEN=4096
 CONFIG_MBEDTLS_SSL_OUT_CONTENT_LEN=4096
 

@@ -19,6 +19,16 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 
+# ESP-IDF 的工具链处理不了非 ASCII 路径：gcc 的 -specs 参数里中文会被转成
+# 换行符，直接报 cannot read spec file。这里提前拦下来，别等编译到一半莫名其妙失败。
+if ($PSScriptRoot -match '[^\x00-\x7F]') {
+    Write-Host "[X] 当前路径含中文/非 ASCII 字符，ESP-IDF 无法在这样的目录下编译：" -ForegroundColor Red
+    Write-Host "    $PSScriptRoot" -ForegroundColor Red
+    Write-Host "    把工程复制到纯英文路径（例如 C:\espwork\yinse）后再运行本脚本。" -ForegroundColor Yellow
+    Write-Host "    中文名只适合放在 GitHub 上给人看，本地工作副本要英文。" -ForegroundColor Yellow
+    exit 1
+}
+
 $idfProfile = 'C:\Espressif\tools\Microsoft.v6.1.PowerShell_profile.ps1'
 if (-not (Test-Path $idfProfile)) {
     Write-Host "[X] 找不到 IDF 激活脚本: $idfProfile" -ForegroundColor Red

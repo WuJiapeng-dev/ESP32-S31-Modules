@@ -95,7 +95,7 @@ void audio_out_drain(void)
     }
     /*
      * i2s_channel_write 返回时数据只是进了 DMA。按 DMA 深度估算残留时长：
-     * dma_desc_num * dma_frame_num / sample_rate = 8 * 240 / 16000 = 120 ms。
+     * dma_desc_num * dma_frame_num / sample_rate = 8 * 240 / 24000 = 80 ms。
      * 不去 disable 通道，避免把最后一个字切断。
      */
     uint32_t ms = (uint32_t)(8000ULL * 240 * 8 / (AUDIO_SAMPLE_RATE * 1000));
