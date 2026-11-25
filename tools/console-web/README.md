@@ -5,7 +5,29 @@
 
 - 线上入口（免费、固定）：**https://wujiapeng-dev.github.io/ESP32-S31-Modules/**
 - 备用入口（平台临时域名，带分享码）：`https://voice-console-26973.app.workbuddy.host/?sharecode=F7FSENPNAQ`
-- 目标域名：`yueyueniao.com`（尚未注册，注册与绑定步骤见对话汇报）
+- 自定义域名（免费子域名，申请中）：`yueyueniao.is-a.dev` → PR [is-a-dev/register#62810](https://github.com/is-a-dev/register/pull/62810)
+- 付费域名：`yueyueniao.com`（未注册；`.com` 没有免费途径）
+
+## 自定义域名（零成本）
+
+`is-a.dev` 免费提供 `*.is-a.dev` 子域名，用 GitHub PR 申请，适合本项目：
+
+1. 申请文件 `domains/yueyueniao.json`（已在 fork 中提交，PR 待合并）：
+   ```json
+   {
+     "owner": { "username": "WuJiapeng-dev", "email": "WuJiapeng-dev@users.noreply.github.com" },
+     "records": { "CNAME": "wujiapeng-dev.github.io" }
+   }
+   ```
+2. **PR 合并后**，一条命令完成绑定并等证书：
+   ```bash
+   python tools/console-web/bind_domain.py            # 绑定 + 等待 HTTPS
+   python tools/console-web/bind_domain.py --check    # 只看状态
+   ```
+3. 绑定后 `github.io` 地址会重定向到新域名，属正常现象。
+
+`bind_domain.py` 会在 DNS 未生效时**拒绝**绑定（否则会把现在能用的 github.io 地址重定向到打不开的域名），并且不落盘、不打印凭据。
+
 
 ## 结构
 
