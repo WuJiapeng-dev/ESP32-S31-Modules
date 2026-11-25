@@ -29,7 +29,7 @@
 #include "ble_bridge.h"
 #include "mic_i2s.h"
 
-static const char *TAG = "phone_recv";
+static const char *TAG = "board_mic";
 
 /* IDF 的 NimBLE 端口不负责注册 store 回调，需要应用侧调用（与官方 bleprph 示例一致） */
 void ble_store_config_init(void);
@@ -64,18 +64,15 @@ void app_main(void)
     ESP_ERROR_CHECK(err);
 
     ESP_LOGI(TAG, "==== ESP32-S31 麦克风识别 → BLE（不接喇叭）====");
-#if MIC_BACKEND == MIC_BACKEND_ES8311
-    ESP_LOGI(TAG, "采集后端: 板载 ES8311（I2C SCL=GPIO%d SDA=GPIO%d，"
-                  "I2S MCLK=GPIO%d BCLK=GPIO%d WS=GPIO%d DIN=GPIO%d）",
-             MIC_I2C_SCL_GPIO, MIC_I2C_SDA_GPIO, MIC_I2S_MCLK_GPIO,
-             MIC_I2S_BCLK_GPIO, MIC_I2S_ES_WS_GPIO, MIC_I2S_ES_DIN_GPIO);
-#elif MIC_BACKEND == MIC_BACKEND_PDM
-    ESP_LOGI(TAG, "采集后端: 板载 PDM 麦（CLK=GPIO%d DATA=GPIO%d）",
-             MIC_PDM_CLK_GPIO, MIC_PDM_DATA_GPIO);
+#if MIC_BACKEND == MIC_BACKEND_ES8389
+    ESP_LOGI(TAG, "采集后端: 板载 ES8389（SDA=GPIO%d SCL=GPIO%d，"
+                  "BCLK=GPIO%d WS=GPIO%d ASDOUT=GPIO%d，PA_CTRL=GPIO%d 拉低）",
+             MIC_I2C_SDA_GPIO, MIC_I2C_SCL_GPIO, MIC_I2S_BCLK_GPIO,
+             MIC_I2S_WS_GPIO, MIC_I2S_SD_GPIO, MIC_PA_CTRL_GPIO);
 #else
     ESP_LOGI(TAG, "采集后端: 外接 INMP441（SCK=GPIO%d WS=GPIO%d SD=GPIO%d，"
                   "L/R 必须接 3V3）",
-             MIC_I2S_SCK_GPIO, MIC_I2S_WS_GPIO, MIC_I2S_SD_GPIO);
+             MIC_I2S_SCK_GPIO, MIC_INMP441_WS_GPIO, MIC_INMP441_SD_GPIO);
 #endif
 
     /* 2. 板载 ES8311 麦克风。

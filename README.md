@@ -17,6 +17,7 @@ ESP32-S31 系列功能模块的**多模块汇总仓库**。一个模块一个目
 | 02a | [`喇叭/复述/`](喇叭/复述/) | 语音复述 | INMP441 → 离线自学习识别（MFCC+DTW）→ BLE Notify + SYN6288 念出识别结果 | I2S (GPIO19/46/13) + UART1 (GPIO9/8) + BY (GPIO12) + NimBLE | 编译通过（0 error / 0 warning，0.89MB，分区余 78%），已烧录，待实物验证 |
 | 02b | [`喇叭/手机接收/`](喇叭/手机接收/) | 识别送手机 | INMP441 → 离线自学习识别 → **只经 BLE Notify 推文字给手机**，不接喇叭（无 UART/TTS） | I2S (GPIO19/46/13) + NimBLE | 编译通过（0 error / 0 warning），待实机验证 |
 | 03 | [`音色/`](音色/) | 云端语音合成 | BLE 收文本 → HTTPS 调 **DeepSeek TTS** 拿裸 PCM → I2S/PDM 推功放；网页配 Key、选引擎与音色 | I2S (GPIO15/16/17) 或 PDM (GPIO17) + Wi-Fi + NimBLE | 编译通过（0 error / 0 warning，1.72MB，分区余 59%），网页见 [`控制台.html`](控制台.html)，待实机验证 |
+| 04 | [`麦克风（板载）/`](麦克风（板载）/) | 板载麦克风识别 | 板载 ES8389 + MIC1/MIC2 → 离线自学习识别（MFCC+DTW）→ **只经 BLE Notify 推文字给手机**，不接喇叭 | I2C (GPIO0/1) + I2S (BCLK3 / WS4 / ASDOUT6) + PA_CTRL (GPIO7) + NimBLE | 已烧录验证采集：`I2C 探测到 ES8389` + `Open codec device OK` + 电平自检非零，待验证识别 |
 
 > `喇叭/` 下现在是**三个互相独立的 ESP-IDF 工程**：根目录（SYN6288 离线合成）、
 > `复述/`（麦克风识别 + 喇叭念出来）、`手机接收/`（麦克风识别 → 手机显示，不接喇叭）。
@@ -43,6 +44,11 @@ ESP32-S31 系列功能模块的**多模块汇总仓库**。一个模块一个目
 **不是通用中文听写**。原因是芯片没有 esp-sr 的预编译库、whisper/vosk 那类模型
 又远超 RAM，详细依据见 `喇叭/手机接收/README.md` §1。
 要认任意中文得走云端 ASR（两个工程都在 `on_utterance_done()` 留了接入点）。
+
+**`麦克风（板载）` 用的是这块板的板载麦克风**（慧勤智远 ESP32-S31 CB V1.1，
+codec 为 ES8389，I2C 在 GPIO0/1、I2S 在 GPIO3/4/6），一根线都不用接。
+早期按乐鑫 Function-CoreBoard-1 的 ES8311 资料去配（I2C 50/51）在这块板上必然扫不到设备，
+原因与修正记录在 `麦克风（板载）/README.md` §0.1。
 
 后续模块在此表追加一行。
 
@@ -81,6 +87,11 @@ ESP32-S31-Modules/
 │   ├── tools/
 │   │   └── gen_preview.py ← 从 wifi_prov.c 抽出 PAGE_HTML，同时写根目录 控制台.html
 │   └── main/              ← 源码
+└── 麦克风（板载）/          ← 模块 04：板载 ES8389 麦克风 → 识别 → 只发 BLE
+    ├── README.md          ← 板型引脚表、为何必须 use_mclk=false、排查顺序
+    ├── CMakeLists.txt     ← project(board_mic)
+    ├── components/        ← esp_codec_dev（官方 codec 组件，含 ES8389 驱动）
+    └── main/              ← mic_i2s（ES8389 / INMP441 两后端）+ fft/mfcc/dtw/asr
 ```
 
 约定：

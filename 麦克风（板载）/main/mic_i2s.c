@@ -1,47 +1,51 @@
 /*
- * mic_i2s.c - 麦克风采集实现（INMP441 / ES8311 二选一，见 mic_i2s.h）
+ * mic_i2s.c - 麦克风采集实现（ES8389 板载 / INMP441 外接，编译期二选一）
  *
- * 两个后端的关键差异：
- *   INMP441  数字 MEMS 麦，直接吐 I2S，24bit 左对齐塞在 32bit 槽里，
- *            不需要 I2C、不需要 MCLK，L/R 脚决定数据进左槽还是右槽。
- *   ES8311   模拟麦 + codec 芯片，必须先经 I2C 配寄存器才会输出 I2S 数据，
- *            需要 MCLK（4.096MHz = 16kHz × 256），输出就是 16bit 单声道。
+ * 默认后端 = 本板（慧勤智远 ESP32-S31 CB V1.1）的板载麦克风：
+ *   MIC1/MIC2 (LMA3729T381) ──模拟──► ES8389 ADC ──I2S ASDOUT──► ESP32
  *
- * 为什么 ES8311 那套不能手写寄存器：
- *   上电后要按 MCLK/LRCK 比值查 coeff_div 表算分频，再依次打开 ADC 偏置、
- *   麦克风 PGA、时钟。少写一个寄存器就是一片静音且无任何报错，
- *   所以直接复用官方 esp_codec_dev 组件。
+ * ES8389 的时钟谁给：本方案让 codec 自己从 BCLK 派生内部时钟
+ * （use_mclk = false，对应厂商例程 19_music 的做法）。
+ * 原因不是偷懒，而是 esp_codec_dev 的 es8389 驱动里：
+ *     if (!codec->use_mclk) es8389_config_sample(...);
+ * 一旦置 use_mclk = true，它压根不写 0x04~0x0A、0x21、0x22 这些分频寄存器，
+ * 16kHz 就落不到表里，表现为能开但采样率不对。
+ * 走 BCLK 派生时它按 BCLK/LRCK 比值查表：16bit × 2 声道 = 比值 32，
+ * 表里正好有 {Ratio=32, MCLK=512000, LRCK=16000}，即 BCLK=512kHz。
  */
 #include "mic_i2s.h"
 
+#include <math.h>
 #include <string.h>
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
+#include "driver/gpio.h"
 #include "driver/i2s_std.h"
 
-#if MIC_BACKEND == MIC_BACKEND_ES8311
+#if MIC_BACKEND == MIC_BACKEND_ES8389
 #include "driver/i2c_master.h"
 #include "esp_codec_dev.h"
 #include "esp_codec_dev_defaults.h"
-#include "es8311_codec.h"
+#include "es8389_codec.h"
 #endif
 
 static const char *TAG = "mic";
 static i2s_chan_handle_t s_rx;
 
 /* ================================================================== */
-/*                          后端 A：ES8311                             */
+/*                     后端 A：ES8389（本板板载）                        */
 /* ================================================================== */
-#if MIC_BACKEND == MIC_BACKEND_ES8311
+#if MIC_BACKEND == MIC_BACKEND_ES8389
+
+#define ES8389_7BIT_ADDR (ES8389_CODEC_DEFAULT_ADDR >> 1)   /* 0x10 */
 
 static esp_codec_dev_handle_t  s_dev;
 static i2c_master_bus_handle_t s_i2c_bus;
 
 /* 只在初始化失败后调用：把整条总线扫一遍，把「芯片不在」和「配置不对」分开。
-   注意不能放在 open 之前用——那时 MCLK 还没跑，ES8311 不应答 I2C，
-   扫描结果必然是 0 个设备（这个是实测踩过的坑，别再挪回去）。 */
+   这条总线上还挂着触摸 GT1151Q(0x14) 和摄像头，所以扫到别的地址是正常的。 */
 static void diag_scan_i2c(void)
 {
     int found = 0;
@@ -52,11 +56,48 @@ static void diag_scan_i2c(void)
         }
     }
     if (found == 0) {
-        ESP_LOGE(TAG, "I2C 全总线（0x08-0x77）无应答：ES8311 没上电、或 SDA/SCL 与板子实际"
-                      "引脚不符、或这块板没有该芯片");
+        ESP_LOGE(TAG, "I2C 全总线（0x08-0x77）无应答：检查 SDA=GPIO%d / SCL=GPIO%d 是否接反、"
+                      "或 AUDIO_3V3 没起来", MIC_I2C_SDA_GPIO, MIC_I2C_SCL_GPIO);
     } else {
-        ESP_LOGW(TAG, "总线上共 %d 个设备，但仍未配通；重点查 SDA=GPIO%d / SCL=GPIO%d 是否接反",
-                 found, MIC_I2C_SDA_GPIO, MIC_I2C_SCL_GPIO);
+        ESP_LOGW(TAG, "总线上共 %d 个设备；ES8389 应在 0x%02X，若不在说明没上电或地址不对",
+                 found, ES8389_7BIT_ADDR);
+    }
+}
+
+/* 开完 codec 立刻量一次电平：这是「麦克风到底有没有在出数据」的直接证据。
+   有声音时 RMS 是几十~上千；一片静音时 RMS=0、峰值=0。 */
+static void diag_audio_level(void)
+{
+    enum { FRAMES = 200, ROUNDS = 10 };     /* 2000 帧 = 125ms @16k */
+    static int16_t buf[FRAMES * 2];
+    int64_t acc_l = 0, acc_r = 0;
+    int32_t pk_l = 0, pk_r = 0;
+    int n = 0;
+
+    for (int k = 0; k < ROUNDS; k++) {
+        if (esp_codec_dev_read(s_dev, buf, sizeof(buf)) != ESP_CODEC_DEV_OK) {
+            ESP_LOGW(TAG, "电平自检读失败，跳过");
+            return;
+        }
+        for (int i = 0; i < FRAMES; i++) {
+            int16_t l = buf[2 * i];
+            int16_t r = buf[2 * i + 1];
+            acc_l += (int32_t)l * l;
+            acc_r += (int32_t)r * r;
+            int32_t al = l < 0 ? -l : l;
+            int32_t ar = r < 0 ? -r : r;
+            if (al > pk_l) pk_l = al;
+            if (ar > pk_r) pk_r = ar;
+        }
+        n += FRAMES;
+    }
+    int rms_l = (int)sqrtf((float)acc_l / n);
+    int rms_r = (int)sqrtf((float)acc_r / n);
+    ESP_LOGI(TAG, "电平自检: 左 RMS=%d 峰值=%d | 右 RMS=%d 峰值=%d（全 0 = 没有数据）",
+             rms_l, pk_l, rms_r, pk_r);
+    if (pk_l == 0 && pk_r == 0) {
+        ESP_LOGE(TAG, "两路都是 0：codec 已配通但没有音频数据，先查 ASDOUT(GPIO%d) 与 BCLK/WS",
+                 MIC_I2S_SD_GPIO);
     }
 }
 
@@ -64,7 +105,18 @@ esp_err_t mic_i2s_init(void)
 {
     esp_err_t err;
 
-    /* ---- 1) I2C 控制通道 ---- */
+    /* ---- 0) 功放使能拉低：录音时不需要喇叭，避免底噪串进来 ---- */
+    gpio_config_t pa_cfg = {
+        .pin_bit_mask = 1ULL << MIC_PA_CTRL_GPIO,
+        .mode         = GPIO_MODE_OUTPUT,
+        .pull_up_en   = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type    = GPIO_INTR_DISABLE,
+    };
+    gpio_config(&pa_cfg);
+    gpio_set_level(MIC_PA_CTRL_GPIO, 0);
+
+    /* ---- 1) I2C 控制通道（与触摸/摄像头共用，板上有 4.7k 上拉）---- */
     i2c_master_bus_config_t bus_cfg = {
         .i2c_port          = I2C_NUM_0,
         .sda_io_num        = MIC_I2C_SDA_GPIO,
@@ -79,12 +131,18 @@ esp_err_t mic_i2s_init(void)
         return err;
     }
 
-    /* 整条总线扫一遍：0x18 在=ES8311 正常；有别的地址=接的不是这块板；
-       一个都没有=板子没有 codec。三种情况后续处置完全不同。 */
-    ESP_LOGI(TAG, "I2C 总线就绪（SCL=GPIO%d SDA=GPIO%d）",
-             MIC_I2C_SCL_GPIO, MIC_I2C_SDA_GPIO);
+    err = i2c_master_probe(s_i2c_bus, ES8389_7BIT_ADDR, 100);
+    if (err == ESP_OK) {
+        ESP_LOGI(TAG, "I2C 探测到 ES8389（SDA=GPIO%d SCL=GPIO%d，7bit 0x%02X）",
+                 MIC_I2C_SDA_GPIO, MIC_I2C_SCL_GPIO, ES8389_7BIT_ADDR);
+    } else {
+        ESP_LOGE(TAG, "I2C 0x%02X 无应答（%s）——继续尝试初始化，失败会打印总线扫描",
+                 ES8389_7BIT_ADDR, esp_err_to_name(err));
+    }
 
-    /* ---- 2) I2S RX ---- */
+    /* ---- 2) I2S RX：16kHz / 16bit / 双声道 ----
+       BCLK 由 ESP32 输出 = 16000 × 16 × 2 = 512kHz，正好命中 codec 系数表。
+       不驱动 MCLK（GPIO2 留空），codec 从 BCLK 派生内部时钟。 */
     i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
     chan_cfg.dma_desc_num  = 6;
     chan_cfg.dma_frame_num = 240;
@@ -98,46 +156,39 @@ esp_err_t mic_i2s_init(void)
     i2s_std_config_t std_cfg = {
         .clk_cfg  = I2S_STD_CLK_DEFAULT_CONFIG(MIC_SAMPLE_RATE),
         .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT,
-                                                        I2S_SLOT_MODE_MONO),
+                                                        I2S_SLOT_MODE_STEREO),
         .gpio_cfg = {
-            .mclk = MIC_I2S_MCLK_GPIO,
+            .mclk = I2S_GPIO_UNUSED,        /* codec 从 BCLK 取时钟 */
             .bclk = MIC_I2S_BCLK_GPIO,
-            .ws   = MIC_I2S_ES_WS_GPIO,
+            .ws   = MIC_I2S_WS_GPIO,
             .dout = I2S_GPIO_UNUSED,
-            .din  = MIC_I2S_ES_DIN_GPIO,
+            .din  = MIC_I2S_SD_GPIO,        /* ASDOUT：codec → ESP32 */
             .invert_flags = { false, false, false },
         },
     };
-    std_cfg.clk_cfg.mclk_multiple = I2S_MCLK_MULTIPLE_256;
+    /* 双声道都收：MIC1/MIC2 分别落在左/右，mic_i2s_read 里再挑一路 */
+    std_cfg.slot_cfg.slot_mask = I2S_STD_SLOT_BOTH;
 
     err = i2s_channel_init_std_mode(s_rx, &std_cfg);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "i2s_channel_init_std_mode 失败: %s", esp_err_to_name(err));
         return err;
     }
-
-    /* 必须在这里就把 I2S 跑起来。
-       es8311_codec_new() 内部会立刻读写 ES8311 的寄存器做芯片探测，而
-       ES8311 在 MCLK（GPIO52）没有时钟输出时不会应答 I2C —— 实测表现是
-       一连串 "I2C_If: Fail to write to dev 30" 然后 "ES8311: Open fail"。
-       esp_codec_dev_open 内部的 enable 来得太晚（它在建 codec 之后），
-       所以这一步必须手动提前。 */
     err = i2s_channel_enable(s_rx);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "i2s_channel_enable 失败: %s", esp_err_to_name(err));
         return err;
     }
-    /* 等 MCLK 稳定。HZ=100 时 pdMS_TO_TICKS(20) = 2 tick = 20ms */
-    vTaskDelay(pdMS_TO_TICKS(20));
-    ESP_LOGI(TAG, "I2S 已启动，MCLK=GPIO%d 开始输出，等 ES8311 应答",
-             MIC_I2S_MCLK_GPIO);
+    vTaskDelay(pdMS_TO_TICKS(20));      /* 让 BCLK/WS 稳定下来再配置 codec */
+    ESP_LOGI(TAG, "I2S 已启动: BCLK=GPIO%d WS=GPIO%d DIN=GPIO%d，BCLK=512kHz",
+             MIC_I2S_BCLK_GPIO, MIC_I2S_WS_GPIO, MIC_I2S_SD_GPIO);
 
-    /* ---- 3) ES8311 ---- */
+    /* ---- 3) ES8389 ---- */
     audio_codec_i2c_cfg_t i2c_cfg = {
         .port           = I2C_NUM_0,
-        .addr           = ES8311_CODEC_DEFAULT_ADDR,   /* 0x30，组件内部 >>1 */
+        .addr           = ES8389_CODEC_DEFAULT_ADDR,   /* 0x20，组件内部 >>1 成 0x10 */
         .bus_handle     = s_i2c_bus,
-        .clock_speed_hz = 100000,
+        .clock_speed_hz = 400000,
     };
     const audio_codec_ctrl_if_t *ctrl_if = audio_codec_new_i2c_ctrl(&i2c_cfg);
     const audio_codec_gpio_if_t *gpio_if = audio_codec_new_gpio();
@@ -146,20 +197,25 @@ esp_err_t mic_i2s_init(void)
         return ESP_FAIL;
     }
 
-    es8311_codec_cfg_t es_cfg = {
+    es8389_codec_cfg_t es_cfg = {
         .ctrl_if     = ctrl_if,
         .gpio_if     = gpio_if,
-        .codec_mode  = ESP_CODEC_DEV_WORK_MODE_ADC,
-        .pa_pin      = -1,
+        .codec_mode  = ESP_CODEC_DEV_WORK_MODE_ADC,   /* 只开录音通路 */
+        .pa_pin      = -1,                            /* 功放自己拉低，不让组件碰 */
         .pa_reverted = false,
-        .master_mode = false,
-        .use_mclk    = true,
-        .digital_mic = false,
+        .master_mode = false,                         /* codec 作 I2S 从机 */
+        .use_mclk    = false,                         /* 时钟从 BCLK 派生，见文件头 */
+        .digital_mic = false,                         /* 板载的是模拟麦 */
+        .invert_mclk = false,
+        .invert_sclk = false,
+        .hw_gain     = { .pa_voltage = 5.0f, .codec_dac_voltage = 3.3f, .pa_gain = 0 },
+        .no_dac_ref  = true,                          /* 录单声道，不用 DAC 当参考 */
         .mclk_div    = 256,
     };
-    const audio_codec_if_t *codec_if = es8311_codec_new(&es_cfg);
+    const audio_codec_if_t *codec_if = es8389_codec_new(&es_cfg);
     if (codec_if == NULL) {
-        ESP_LOGE(TAG, "es8311_codec_new 失败");
+        ESP_LOGE(TAG, "es8389_codec_new 失败（芯片 ID 读不到）");
+        diag_scan_i2c();
         return ESP_FAIL;
     }
 
@@ -187,111 +243,67 @@ esp_err_t mic_i2s_init(void)
 
     esp_codec_dev_sample_info_t fs = {
         .bits_per_sample = 16,
-        .channel         = 1,
+        .channel         = 2,           /* 双声道：BCLK/LRCK 比值 32 */
         .channel_mask    = 0,
         .sample_rate     = MIC_SAMPLE_RATE,
-        .mclk_multiple   = 256,
+        .mclk_multiple   = 256,         /* 未使用 MCLK，仅为字段完整 */
     };
-    /* 关键：open 的内部顺序是
-         set_fmt → enable I2S（GPIO52 开始输出 MCLK）→ codec set_fs → codec enable
-       ES8311 必须等 MCLK 跑起来才会在 I2C 上应答，所以这一步之前
-       绝不能去 probe I2C，否则必然扫不到任何设备。 */
     err = esp_codec_dev_open(s_dev, &fs);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "esp_codec_dev_open 失败: %s —— 开始 I2C 诊断", esp_err_to_name(err));
         diag_scan_i2c();
         return err;
     }
-    esp_codec_dev_set_in_gain(s_dev, 30.0f);   /* 与 xiaozhi 板级代码一致 */
 
-    ESP_LOGI(TAG, "ES8311 就绪: SCL=GPIO%d SDA=GPIO%d MCLK=GPIO%d BCLK=GPIO%d "
-                  "WS=GPIO%d DIN=GPIO%d @ %dHz 16bit 单声道",
-             MIC_I2C_SCL_GPIO, MIC_I2C_SDA_GPIO, MIC_I2S_MCLK_GPIO,
-             MIC_I2S_BCLK_GPIO, MIC_I2S_ES_WS_GPIO, MIC_I2S_ES_DIN_GPIO,
-             MIC_SAMPLE_RATE);
+    err = esp_codec_dev_set_in_gain(s_dev, MIC_PGA_DB);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "设置麦克风增益 %.1fdB 失败: %s（继续）", (double)MIC_PGA_DB,
+                 esp_err_to_name(err));
+    }
+
+    ESP_LOGI(TAG, "ES8389 就绪: SDA=GPIO%d SCL=GPIO%d BCLK=GPIO%d WS=GPIO%d "
+                  "ASDOUT=GPIO%d @ %dHz 16bit 双声道（PGA %.1fdB，取%s声道）",
+             MIC_I2C_SDA_GPIO, MIC_I2C_SCL_GPIO, MIC_I2S_BCLK_GPIO, MIC_I2S_WS_GPIO,
+             MIC_I2S_SD_GPIO, MIC_SAMPLE_RATE, (double)MIC_PGA_DB,
+             MIC_CH_SEL == 0 ? "左" : (MIC_CH_SEL == 1 ? "右" : "平均两"));
+
+    diag_audio_level();
     return ESP_OK;
 }
 
 size_t mic_i2s_read(int16_t *dst, size_t frames, uint32_t timeout_ms)
 {
+    enum { MAX_FRAMES = 1024 };
+    static int16_t st[MAX_FRAMES * 2];
+
     (void)timeout_ms;
     if (s_dev == NULL || dst == NULL || frames == 0) {
         return 0;
     }
-    int ret = esp_codec_dev_read(s_dev, dst, (int)(frames * sizeof(int16_t)));
+    if (frames > MAX_FRAMES) {
+        frames = MAX_FRAMES;
+    }
+
+    int ret = esp_codec_dev_read(s_dev, st, (int)(frames * 2 * sizeof(int16_t)));
     if (ret != ESP_CODEC_DEV_OK) {
         return 0;
+    }
+
+    if (MIC_CH_SEL == 2) {
+        for (size_t i = 0; i < frames; i++) {
+            dst[i] = (int16_t)(((int32_t)st[2 * i] + st[2 * i + 1]) / 2);
+        }
+    } else {
+        const size_t off = (MIC_CH_SEL == 1) ? 1 : 0;
+        for (size_t i = 0; i < frames; i++) {
+            dst[i] = st[2 * i + off];
+        }
     }
     return frames;
 }
 
 /* ================================================================== */
-/*                    后端 C：PDM 数字麦（两根线）                      */
-/* ================================================================== */
-#elif MIC_BACKEND == MIC_BACKEND_PDM
-
-#include "driver/i2s_pdm.h"
-
-esp_err_t mic_i2s_init(void)
-{
-    i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
-    chan_cfg.dma_desc_num  = 6;
-    chan_cfg.dma_frame_num = 240;
-
-    esp_err_t err = i2s_new_channel(&chan_cfg, NULL, &s_rx);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "i2s_new_channel 失败: %s", esp_err_to_name(err));
-        return err;
-    }
-
-    i2s_pdm_rx_config_t pdm_cfg = {
-        .clk_cfg  = I2S_PDM_RX_CLK_DEFAULT_CONFIG(MIC_SAMPLE_RATE),
-        .slot_cfg = I2S_PDM_RX_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT,
-                                                   I2S_SLOT_MODE_MONO),
-        .gpio_cfg = {
-            .clk = MIC_PDM_CLK_GPIO,
-            .din = MIC_PDM_DATA_GPIO,
-            .invert_flags = {
-                .clk_inv = false,
-            },
-        },
-    };
-
-    err = i2s_channel_init_pdm_rx_mode(s_rx, &pdm_cfg);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "i2s_channel_init_pdm_rx_mode 失败: %s", esp_err_to_name(err));
-        return err;
-    }
-
-    err = i2s_channel_enable(s_rx);
-    if (err != ESP_OK) {
-        ESP_LOGE(TAG, "i2s_channel_enable 失败: %s", esp_err_to_name(err));
-        return err;
-    }
-
-    ESP_LOGI(TAG, "PDM 麦就绪: CLK=GPIO%d DATA=GPIO%d @ %dHz 16bit 单声道",
-             MIC_PDM_CLK_GPIO, MIC_PDM_DATA_GPIO, MIC_SAMPLE_RATE);
-    return ESP_OK;
-}
-
-size_t mic_i2s_read(int16_t *dst, size_t frames, uint32_t timeout_ms)
-{
-    if (s_rx == NULL || dst == NULL || frames == 0) {
-        return 0;
-    }
-
-    size_t bytes = 0;
-    esp_err_t err = i2s_channel_read(s_rx, dst, frames * sizeof(int16_t),
-                                     &bytes, timeout_ms);
-    if (err != ESP_OK && err != ESP_ERR_TIMEOUT) {
-        ESP_LOGW(TAG, "i2s_channel_read 失败: %s", esp_err_to_name(err));
-        return 0;
-    }
-    return bytes / sizeof(int16_t);
-}
-
-/* ================================================================== */
-/*                         后端 B：INMP441                             */
+/*                       后端 B：INMP441（外接）                        */
 /* ================================================================== */
 #else   /* MIC_BACKEND == MIC_BACKEND_INMP441 */
 
@@ -316,9 +328,9 @@ esp_err_t mic_i2s_init(void)
         .gpio_cfg = {
             .mclk = I2S_GPIO_UNUSED,        /* INMP441 不需要 MCLK */
             .bclk = MIC_I2S_SCK_GPIO,
-            .ws   = MIC_I2S_WS_GPIO,
+            .ws   = MIC_INMP441_WS_GPIO,
             .dout = I2S_GPIO_UNUSED,
-            .din  = MIC_I2S_SD_GPIO,
+            .din  = MIC_INMP441_SD_GPIO,
             .invert_flags = { false, false, false },
         },
     };
@@ -339,7 +351,7 @@ esp_err_t mic_i2s_init(void)
 
     ESP_LOGI(TAG, "INMP441 就绪: SCK=GPIO%d WS=GPIO%d SD=GPIO%d @ %dHz "
                   "32bit槽/取右声道（L/R 必须接 3V3）",
-             MIC_I2S_SCK_GPIO, MIC_I2S_WS_GPIO, MIC_I2S_SD_GPIO, MIC_SAMPLE_RATE);
+             MIC_I2S_SCK_GPIO, MIC_INMP441_WS_GPIO, MIC_INMP441_SD_GPIO, MIC_SAMPLE_RATE);
     return ESP_OK;
 }
 

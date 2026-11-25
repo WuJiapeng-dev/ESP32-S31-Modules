@@ -1,19 +1,18 @@
 /*
  * mic_i2s.h - 麦克风采集（两种后端，编译期二选一）
  *
- * 为什么留两套：
- *   按 xiaozhi 仓库的板级资料，ESP32-S31-Function-CoreBoard-1 是板载 ES8311 +
- *   板载麦克风。但本机实测（2026-11-25）在 I2C GPIO50/51 上扫描整条总线，
- *   应答设备数为 0 —— 手上这块板并没有 ES8311。所以默认走外接 INMP441，
- *   ES8311 那套代码完整保留，将来换到真正的 Function-CoreBoard 上改一行即可。
+ * 默认后端 = 板载麦克风（ES8389 codec），对应当前这块板：
+ *   慧勤智远 Waiken-Smart ESP32-S31 CB V1.1（原理图 Rev 2026-09-17）
+ *   板载两颗模拟 MEMS 麦 LMA3729T381 → ES8389 的 ADC → I2S ASDOUT 进 ESP32。
+ *   依据：厂商原理图第 1/3 页 + 用户手册 1.5 节引脚分配表。
  *
- * 怎么切换：改下面 MIC_BACKEND 这一行，重新编译烧录。
+ * 另一路后端 = 外接 INMP441 数字麦，给没有 codec 的板子用，改一行宏即可。
  *
- * 为什么两者采样率都是 16kHz：
- *   语音识别用的 MFCC 在 8kHz 带宽内足够；16kHz 覆盖到 8kHz，
+ * 为什么采样率都是 16kHz：
+ *   语音识别用的 MFCC 在 8kHz 带宽内已经够用，16kHz 覆盖到 8kHz，
  *   同时把 FFT 点数、DMA 带宽、算力压到一半，适合 MCU 实时提特征。
- *   ES8311 的时钟分频表里有 {MCLK=4096000, rate=16000} 这一行，
- *   4.096MHz = 16kHz × 256 正好整除，所以不需要重采样。
+ *   ES8389 的时钟系数表里有 {Ratio=32, MCLK=512000, LRCK=16000} 这一行，
+ *   BCLK = 16kHz × 16bit × 2声道 = 512kHz，正好命中，不需要重采样。
  */
 #pragma once
 
@@ -22,37 +21,46 @@
 
 #include "esp_err.h"
 
-#define MIC_BACKEND_ES8311  1
+#define MIC_BACKEND_ES8389  1
 #define MIC_BACKEND_INMP441 2
-#define MIC_BACKEND_PDM     3
 
 /* ---------------- 选择采集后端（改这里） ---------------- */
 #ifndef MIC_BACKEND
-#define MIC_BACKEND MIC_BACKEND_PDM
+#define MIC_BACKEND MIC_BACKEND_ES8389
 #endif
 
 #define MIC_SAMPLE_RATE     16000
 
-/* ---------------- INMP441（外接数字麦） ---------------- */
+/* ---------------- ES8389（本板板载 codec） ----------------
+ * 引脚全部取自慧勤智远 ESP32-S31 CB V1.1 原理图：
+ *   I2C 与触摸、摄像头共用一条总线（板上有 4.7k 上拉 R1/R2 到 3.3V）
+ *   ES8389 7bit 地址 0x10（8bit 写法 0x20），AD0 经 100k 下拉
+ *   注意 SDA=0 / SCL=1，两个不能对调
+ */
+#define MIC_I2C_SDA_GPIO    0       /* ES8389 / 触摸 / 摄像头 共用 I2C SDA */
+#define MIC_I2C_SCL_GPIO    1       /* 同上 SCL */
+#define MIC_I2S_MCLK_GPIO   2       /* I2S_MCLK → codec（本方案不驱动，见下） */
+#define MIC_I2S_BCLK_GPIO   3       /* I2S_SCLK / BCLK */
+#define MIC_I2S_WS_GPIO     4       /* I2S_LRCK / WS */
+#define MIC_I2S_SD_GPIO     6       /* I2S_ASDOUT：codec → ESP32（录音方向） */
+#define MIC_PA_CTRL_GPIO    7       /* 两颗 NS4150B 的使能，高电平开；录音时拉低 */
+
+/* 取哪个声道当单声道用：0=左(MIC1) 1=右(MIC2) 2=两路取平均
+ * ES8389 是双 ADC，板上有两颗麦分别进 L/R；识别只用一路即可。 */
+#ifndef MIC_CH_SEL
+#define MIC_CH_SEL          0
+#endif
+
+/* 麦克风 PGA 增益（dB）。LMA3729 灵敏度约 -38dBV，30dB 起步，
+ * 嫌小改 33.5 / 36，削波（电平顶到 ±32767）就往下调到 27.5 / 24.5 */
+#ifndef MIC_PGA_DB
+#define MIC_PGA_DB          30.0f
+#endif
+
+/* ---------------- INMP441（外接数字麦，备用后端） ---------------- */
 #define MIC_I2S_SCK_GPIO    19      /* INMP441 SCK (BCLK)  */
-#define MIC_I2S_WS_GPIO     46      /* INMP441 WS  (LRCLK) */
-#define MIC_I2S_SD_GPIO     13      /* INMP441 SD  (DATA)  */
-
-/* ---------------- ES8311（板载 codec） ---------------- */
-#define MIC_I2C_SCL_GPIO    50      /* ES8311 I2C SCL */
-#define MIC_I2C_SDA_GPIO    51      /* ES8311 I2C SDA */
-#define MIC_I2S_MCLK_GPIO   52      /* ES8311 MCLK  */
-#define MIC_I2S_BCLK_GPIO   53      /* I2S BCLK / SCLK */
-#define MIC_I2S_ES_WS_GPIO  55      /* I2S WS / LRCK */
-#define MIC_I2S_ES_DIN_GPIO 54      /* ES8311 ASDOUT → ESP32（录音） */
-
-/* ---------------- PDM 数字麦（只要 CLK + DATA 两根线） ----------------
- * 本机板型 ESP32-S31 CB V1.1（慧勤智远）实测 I2C 50/51 上没有任何设备，
- * 说明它没有 ES8311，板载麦更可能是 PDM 数字麦。
- * 下面两个引脚需按实际板子填：PDM 麦的 CLK 由 ESP32 输出，DATA 从麦进来。
- * 不确定时先看麦克风元件旁边有几根走线——PDM 只有两根。 */
-#define MIC_PDM_CLK_GPIO    46      /* PDM CLK  → 麦克风 */
-#define MIC_PDM_DATA_GPIO   47      /* PDM DATA ← 麦克风 */
+#define MIC_INMP441_WS_GPIO 46      /* INMP441 WS  (LRCLK) */
+#define MIC_INMP441_SD_GPIO 13      /* INMP441 SD  (DATA)  */
 
 esp_err_t mic_i2s_init(void);
 
