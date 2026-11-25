@@ -15,6 +15,7 @@ tools/ai连接网址/
 ├── bind_domain.py           # is-a.dev 合并后绑定自定义域名并等 HTTPS
 ├── domains/
 │   └── yueyueniao.json      # is-a.dev 域名申请文件（已提交 PR）
+├── public-link.bat          # 隧道：把板子临时暴露成公网 https（需 cloudflared.exe）
 ├── site/
 │   └── index.html           # 发布产物，由 build_demo.py 生成，勿手改
 └── README.md
@@ -44,6 +45,16 @@ python tools/ai连接网址/bind_domain.py
 1. **打开示例数据层**：只拦截文档保留地址 `192.0.2.x`，真实地址照常走网络。
 2. **消除混合内容冲突**：公网是 https，浏览器会拦截对 `http://192.168.x.x` 的请求，因此地址解析在 https 下默认补 `https://`，示例与文案改成 https，并删掉 `http://192.168.4.1` 这类硬编码。脚本末尾有兜底断言，残留相关片段会直接报错。
 
+## 隧道（让公网地址能控真机）
+
+Pages 上那份是演示数据，读不到内网板子。要「在外面用手机流量也能控制真板子」，用隧道：
+
+1. 下载 `cloudflared-windows-amd64.exe`，改名 `cloudflared.exe`，放到本目录；
+2. 双击 `public-link.bat`（或 `public-link.bat 192.168.4.1`）；
+3. 窗口里出现 `https://xxxx.trycloudflare.com`，这就是能真控板子的公网地址。
+
+板子仍是明文 http，TLS 在隧道这一端终止，所以浏览器不会报混合内容。代价：跑隧道的电脑要一直开着，免费隧道每次重启换域名，且**没有鉴权**，不用时关掉窗口。
+
 ## 自定义域名（零成本）
 
 `is-a.dev` 免费提供 `*.is-a.dev` 子域名，用 GitHub PR 申请。申请文件 `domains/yueyueniao.json`：
@@ -69,7 +80,7 @@ python tools/ai连接网址/bind_domain.py
 
 ## 已知限制
 
-- 公网 https 页面无法访问内网 http 板子（浏览器混合内容策略，无开关可绕）。所以线上跑的是示例数据；要控制真实板子，用板子自己发出的页面（`http://192.168.4.1`），或 `tools/public-link.bat` 的隧道。
+- 公网 https 页面无法访问内网 http 板子（浏览器混合内容策略，无开关可绕）。所以线上跑的是示例数据；要控制真实板子，用板子自己发出的页面（`http://192.168.4.1`），或本模块 `public-link.bat` 的隧道。
 - 示例数据只对 `192.0.2.10` / `192.0.2.11` 生效。
 - `is-a.dev` 靠人工审 PR，合并时间由维护者决定。
 
