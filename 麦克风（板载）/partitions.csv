@@ -1,0 +1,12 @@
+# 分区表：单 app，app 分区 4MB，nvs 放大到 384KB
+#
+# 为什么要自定义：
+#   1) 默认 SINGLE_APP_LARGE 的 factory 只有 0x177000（1.47MB），
+#      本工程编进 NimBLE + GB2312 码表（约 0.1MB）+ 识别代码，默认分区会溢出。
+#   2) 语音模板存 NVS：8 条模板 × 200 帧 × 13 维 × 2 字节 ≈ 42KB，
+#      加上 BLE 绑定信息，默认 24KB 的 nvs 分区装不下。
+#
+# Name,     Type, SubType, Offset,   Size,     Flags
+nvs,        data, nvs,     0x9000,   0x60000,
+phy_init,   data, phy,     0x69000,  0x1000,
+factory,    app,  factory, 0x70000,  0x400000,
