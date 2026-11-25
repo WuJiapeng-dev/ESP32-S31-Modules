@@ -1,6 +1,6 @@
 # 麦克风（Arduino 版）— ESP32-S31 板载麦克风 + BLE 双向 + 离线关键词识别
 
-本目录是 **Arduino IDE 工程**（不是 ESP-IDF 工程），直接用 Arduino IDE 打开 `麦克风.ino` 即可。
+本目录是 **Arduino IDE 工程**（不是 ESP-IDF 工程），直接用 Arduino IDE 打开 `mic_ble_kws.ino` 即可。
 
 硬件是慧勤智远 **ESP32-S31 CB V1.1 小系统板**，用板载两颗模拟 MEMS 麦克风 + ES8389 编解码器采集，
 **不需要外接 INMP441，不需要接任何杜邦线**，只插一根 USB 线。
@@ -39,7 +39,7 @@ Arduino-ESP32 **4.0.0（2026-11-19 发布）才首次加入 ESP32-S31 支持**�
 
 ## 2. 编译与烧录
 
-- 打开 `麦克风.ino`（Arduino 要求 sketch 目录名与 .ino 同名，本目录已满足）。
+- 打开 `mic_ble_kws.ino`（Arduino 要求 sketch 文件夹名与 .ino 文件名一致且只能字母/数字/下划线开头，本目录 `mic_ble_kws` 已满足；中文文件夹名 IDE 会报"无效的项目名"）。
 - 工具 → 端口 → 选 CH343 对应的 COM 口（本项目实测为 COM8）。
 - **分区方案建议选 `Huge APP (3MB No OTA/1MB SPIFFS)`**：BLE + 识别代码编译后约 1.03MB，
   默认 1.3MB 的分区余量太少。
@@ -196,7 +196,7 @@ Partition Scheme `Huge APP`、USB Mode `Hardware CDC and JTAG`。
 
 | 文件 | 作用 |
 |---|---|
-| `麦克风.ino` | 主程序：初始化顺序、串口/BLE 命令、主循环 |
+| `mic_ble_kws.ino` | 主程序：初始化顺序、串口/BLE 命令、主循环 |
 | `es8389.h/.cpp` | ES8389 录音链路初始化（寄存器序列移植自 esp_codec_dev 1.6.2） |
 | `mic_i2s.h/.cpp` | I2S 主机端采集 + 电平自检 |
 | `kws.h/.cpp` | 端点检测 + 音节计数分类 + DTW 模板管理 |
