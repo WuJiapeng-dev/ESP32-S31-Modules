@@ -583,6 +583,25 @@ static void asr_task(void *arg)
             memset(blk + got, 0, (MFCC_HOP - got) * sizeof(int16_t));
         }
 
+#if MIC_LEVEL_DEBUG
+        /* 现场调增益用：每 500ms 打一行电平，ASR 关着也照打（这是它存在的意义——
+           先确认麦克风有数据、说话时电平够不够，再去管识别）。
+           mic_i2s.h 里把 MIC_LEVEL_DEBUG 改 1 即可，正常固件保持 0。 */
+        {
+            static int   dbg_n;
+            static float dbg_max;
+            float r = pcm_rms(blk, MFCC_HOP);
+            if (r > dbg_max) {
+                dbg_max = r;
+            }
+            if (++dbg_n >= 50) {                /* 50 × 10ms = 500ms */
+                ESP_LOGI(TAG, "电平: RMS=%.0f 这 0.5s 峰值=%.0f", (double)r, (double)dbg_max);
+                dbg_n = 0;
+                dbg_max = 0;
+            }
+        }
+#endif
+
         if (s_mode == MODE_OFF) {
             rec = false;
             hit = 0;
@@ -621,6 +640,7 @@ static void asr_task(void *arg)
         if (thr < 180.0f) {
             thr = 180.0f;
         }
+
 
         if (!rec) {
             pre_push(q);

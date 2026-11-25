@@ -62,6 +62,12 @@
 #define MIC_INMP441_WS_GPIO 46      /* INMP441 WS  (LRCLK) */
 #define MIC_INMP441_SD_GPIO 13      /* INMP441 SD  (DATA)  */
 
+/* 现场调增益用：置 1 后识别任务每 500ms 打印一行电平（RMS/噪声底/阈值）。
+ * 正常固件保持 0，避免刷屏。改完要重新编译烧录。 */
+#ifndef MIC_LEVEL_DEBUG
+#define MIC_LEVEL_DEBUG     0
+#endif
+
 esp_err_t mic_i2s_init(void);
 
 /*
