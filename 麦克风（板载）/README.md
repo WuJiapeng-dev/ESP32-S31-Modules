@@ -109,12 +109,44 @@ I (99023) asr: 电平: RMS=60 这 0.5s 峰值=134
 共用同一套 BLE 身份：广播名 **`kskbl zdjd`**，Service `6a400001-…`、
 Write `6a400002-…`、Notify `6a400003-…`（CCCD `00002902-…` 由协议栈自动生成）。
 
-### 0.5 资料来源
+### 0.5 与厂商参考实现逐项对照（已核对，不是推测）
 
-- 慧勤智远 ESP32-S31 CB V1.1 原理图（4 页）、用户手册 V1.0 引脚分配表
-- 同板资料整理：`docs/boards/wks_s31_cb.md`（zhing2006/esp-gbx 仓库，
-  记录了 ES8389 的 I2C 0x10、I2S 2/3/4/5/6、PA_CTRL 7、MIC1/MIC2 型号）
-- `esp_codec_dev` 组件内的 `device/es8389/es8389.c`（系数表、`use_mclk` 分支）
+厂商资料包在 `C://Users//yyn//Desktop//慧勤智远 ESP32-S31 CB V1.1小系统板\`，
+其中的录音例程 `20_recoding` 就是"麦克风→ES8389→I2S"的官方实现。逐项比对：
+
+| 项 | 厂商实现 | 本工程 | 依据 |
+|---|---|---|---|
+| I2C | SDA=IO0 / SCL=IO1，400kHz | 同 | `components/BSP/MYIIC/myiic.h` |
+| I2S | BCK=IO3 / WS=IO4 / DO=IO5 / DI=IO6 | BCLK=3 / WS=4 / ASDOUT=6 | `MYI2S/myi2s.h` |
+| MCLK | **`I2S_MCK_IO = GPIO_NUM_NC`（不接）** | `I2S_GPIO_UNUSED` | 同上，注释写明"无MCLK,时钟由BCLK派生" |
+| 采样/位宽/声道 | 16000Hz / 16bit / STEREO | 同 | `myi2s.c` 的 `std_cfg` |
+| codec 设备态 | 录音时"ADC 设备态，PLL ×2" | `no_dac_ref = true` | `myes8389_set_dac_ref(false)` |
+| ADC 增益 | `esp_codec_dev_set_in_gain(dev, 30.0f)` | `MIC_PGA_DB = 30.0f` | `myes8389_record_start()` |
+| 采样信息 | `channel = 2, channel_mask = 0x03` | `channel = 2` | 同上 |
+| PA_CTRL | GPIO7，录音时 `gpio_set_level(...,0)` | 初始化即拉低 | `myes8389_init()` |
+
+**时钟寄存器也对得上**：本工程 16kHz 时驱动写入的系数行是
+`{Ratio=32, MCLK=512000, LRCK=16000}` → `0x05=0x55, 0x06=0x84, 0x07=0xD0, 0x09=0xC1`，
+与厂商 `set_dac_ref(false)` 手工写的那四个值**完全相同**。也就是说两边落在同一个
+16kHz 时钟配置上，不是"看起来差不多"。
+
+芯片侧：ES8389 有 MIC1P/N、MIC2P/N 两路差分输入 → PGA1/PGA2 → 双 ADC → I2S 左右声道
+（`ES8389.PDF` 框图与 REG 0x6E/0x72/0x73）；板载两颗 LMA3729T381 模拟 MEMS 分别
+接这两路，所以**左右声道各是一颗麦**，取哪一路都能识别，本工程默认取左。
+
+### 0.6 资料来源（一手为主）
+
+1. `1. 用户手册/ESP32-S31 CB V1.1_用户手册_V1.0.pdf` —— **表 1.1 引脚分配表**
+   （IO0=CDATA、IO1=CCLK、IO2=MCLK、IO3=SCLK、IO4=LRCK、IO5=DSDIN、IO6=SDOUT、IO7=PA_CTRL）
+2. `2. 原理图/ESP32-S31 CB V1.1_SCH.pdf` —— 第 1、3 页：模组、ES8389、两颗 NS4150B
+3. `3. 程序源码/1，基础例程/basic__routines.zip` —— `20_recoding`（录音，最贴近本工程）、
+   `19_music`（播放）；BSP 里 `MYES8389` / `MYI2S` / `MYIIC` 三个驱动
+4. `4. 芯片资料/ES8389.PDF`（寄存器表、PGA 0~33.5dB 步进 3.5dB）、
+   `LMA3729T381-OAS02.PDF`（模拟 MEMS 麦）、`NS4150B.pdf`（3W D 类功放）
+5. 参考整理（二手，作为交叉验证）：`docs/boards/wks_s31_cb.md`
+6. 本仓库内置的 `components/esp_codec_dev`（`device/es8389/es8389.c` 的系数表与
+   `use_mclk` 分支），版本 1.6.2。厂商例程用的是新版 1.5.x API（`ref_enable`/`pa_cfg`），
+   两者 `mclk_fre = fs × bits × (ref ? 4 : 2)` 的算法与系数表一致。
 
 ---
 
