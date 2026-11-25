@@ -572,7 +572,11 @@ static void asr_task(void *arg)
 
         size_t got = mic_i2s_read(blk, MFCC_HOP, 100);
         if (got == 0) {
-            vTaskDelay(pdMS_TO_TICKS(5));
+            /* 必须传 tick 数而不是 ms：CONFIG_FREERTOS_HZ=100 时
+               pdMS_TO_TICKS(5) == 0，vTaskDelay(0) 只让出 CPU 立刻重跑，
+               会把 CPU0 的 IDLE 饿死并触发 task_wdt。1 tick = 10ms，
+               正好等于一帧 MFCC 的周期。 */
+            vTaskDelay(1);
             continue;
         }
         if (got < MFCC_HOP) {

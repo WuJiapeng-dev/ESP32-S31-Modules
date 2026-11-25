@@ -64,10 +64,16 @@ void app_main(void)
     ESP_ERROR_CHECK(err);
 
     ESP_LOGI(TAG, "==== ESP32-S31 麦克风识别 → BLE（不接喇叭）====");
-    ESP_LOGI(TAG, "板载 ES8311：I2C SCL=GPIO%d SDA=GPIO%d，I2S MCLK=GPIO%d BCLK=GPIO%d "
-                  "WS=GPIO%d DIN=GPIO%d",
+#if MIC_BACKEND == MIC_BACKEND_ES8311
+    ESP_LOGI(TAG, "采集后端: 板载 ES8311（I2C SCL=GPIO%d SDA=GPIO%d，"
+                  "I2S MCLK=GPIO%d BCLK=GPIO%d WS=GPIO%d DIN=GPIO%d）",
              MIC_I2C_SCL_GPIO, MIC_I2C_SDA_GPIO, MIC_I2S_MCLK_GPIO,
-             MIC_I2S_BCLK_GPIO, MIC_I2S_WS_GPIO, MIC_I2S_DIN_GPIO);
+             MIC_I2S_BCLK_GPIO, MIC_I2S_ES_WS_GPIO, MIC_I2S_ES_DIN_GPIO);
+#else
+    ESP_LOGI(TAG, "采集后端: 外接 INMP441（SCK=GPIO%d WS=GPIO%d SD=GPIO%d，"
+                  "L/R 必须接 3V3）",
+             MIC_I2S_SCK_GPIO, MIC_I2S_WS_GPIO, MIC_I2S_SD_GPIO);
+#endif
 
     /* 2. 板载 ES8311 麦克风。
        故意不用 ESP_ERROR_CHECK：麦克风起不来时如果直接 panic，板子会进
