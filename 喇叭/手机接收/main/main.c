@@ -64,8 +64,10 @@ void app_main(void)
     ESP_ERROR_CHECK(err);
 
     ESP_LOGI(TAG, "==== ESP32-S31 麦克风识别 → BLE（不接喇叭）====");
-    ESP_LOGI(TAG, "INMP441: SCK=GPIO%d WS=GPIO%d SD=GPIO%d（L/R 接 VDD，取右声道）",
-             MIC_I2S_SCK_GPIO, MIC_I2S_WS_GPIO, MIC_I2S_SD_GPIO);
+    ESP_LOGI(TAG, "板载 ES8311：I2C SCL=GPIO%d SDA=GPIO%d，I2S MCLK=GPIO%d BCLK=GPIO%d "
+                  "WS=GPIO%d DIN=GPIO%d",
+             MIC_I2C_SCL_GPIO, MIC_I2C_SDA_GPIO, MIC_I2S_MCLK_GPIO,
+             MIC_I2S_BCLK_GPIO, MIC_I2S_WS_GPIO, MIC_I2S_DIN_GPIO);
 
     /* 2. 麦克风 I2S */
     ESP_ERROR_CHECK(mic_i2s_init());

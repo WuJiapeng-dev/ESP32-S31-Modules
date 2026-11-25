@@ -10,7 +10,10 @@ idf_component_register(
     REQUIRES bt
              nvs_flash
              esp_driver_i2s
+             esp_driver_i2c
+             esp_driver_gpio
              esp_timer
+             esp_codec_dev
 )
 
 # 只给本工程源码开 -O2：MFCC 每 10ms 跑一次 512 点 FFT（100 次/秒）。
