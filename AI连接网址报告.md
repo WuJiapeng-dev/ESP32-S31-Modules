@@ -27,7 +27,7 @@
 | `tools/ai连接网址/bind_domain.py` | 5 156 B | 域名 PR 合并后绑定 Pages 自定义域名并等 HTTPS | 已提交 |
 | `tools/ai连接网址/domains/yueyueniao.json` | 167 B | is-a.dev 域名申请文件（本地副本） | 已提交 |
 | `tools/ai连接网址/README.md` | — | 模块说明与常用命令 | 已提交 |
-| `tools/ai连接网址/报告.md` | — | 本报告 | 已提交 |
+| `AI连接网址报告.md`（仓库根目录） | 10 268 B | 本报告 | 已提交 |
 
 线上另有一份平台临时域名链接作为备用：`https://voice-console-26973.app.workbuddy.host/?sharecode=F7FSENPNAQ`（带分享码，可随时下线）。
 
