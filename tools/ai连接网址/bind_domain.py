@@ -6,8 +6,8 @@
 （`nslookup yueyueniao.is-a.dev` 应指向 wujiapeng-dev.github.io 的同级地址）。
 
 用法：
-    python tools/console-web/bind_domain.py            # 绑定并等待 HTTPS
-    python tools/console-web/bind_domain.py --check     # 只看状态，不改动
+    python tools/ai连接网址/bind_domain.py            # 绑定并等待 HTTPS
+    python tools/ai连接网址/bind_domain.py --check     # 只看状态，不改动
 
 安全说明：
 - 凭据不落盘、不打印，运行期从 git 凭据助手临时取用。

@@ -8,7 +8,7 @@
   3. 提交并推送；GitHub Pages 会自动重建（通常 30~60 秒）
 
 用法（在仓库任意位置）：
-    python tools/console-web/deploy_pages.py
+    python tools/ai连接网址/deploy_pages.py
 
 为什么不走 GitHub Actions：当前 git 凭据是 OAuth App，没有 workflow 权限，
 无法推送 .github/workflows/ 下的文件。所以改为直接推 gh-pages 分支 —— Pages

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-从仓库根目录的 控制台.html 生成公网演示版页面（tools/console-web/index.html）。
+从仓库根目录的 控制台.html 生成公网演示版页面（tools/ai连接网址/index.html）。
 
 改动只涉及两点，其余功能原样保留：
   1. 打开「示例数据」层（只拦截文档保留地址 192.0.2.x，不碰任何真实地址）
@@ -9,7 +9,7 @@
      http://192.168.x.x 这类会在 https 页面上被混合内容策略拦截的示例
 
 用法（仓库根目录）：
-    python tools/console-web/build_demo.py
+    python tools/ai连接网址/build_demo.py
 """
 import io
 import os
