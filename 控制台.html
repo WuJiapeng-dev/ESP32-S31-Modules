@@ -1,28 +1,1757 @@
-<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'><title>云端语音合成控制台</title><style>:root{--bg:#f4f7fb;--card:#fff;--ink:#182334;--muted:#637189;--line:#e2e9f2;--blue:#2563eb;--blue-s:#edf4ff;--teal:#0d9488;--teal-s:#e8f8f5;--purple:#7c3aed;--purple-s:#f3edff;--amber:#b45309;--amber-s:#fff5e6;--red:#c0392b;--red-s:#fdf0ee;--code:#f7f9fc}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.65 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}.wrap{max-width:760px;margin:0 auto;padding-bottom:40px}.top{position:sticky;top:0;z-index:9;background:rgba(244,247,251,.96);backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:14px 16px 12px}.logo{font-size:17px;font-weight:700;letter-spacing:.3px}.logo span{color:var(--blue)}.badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;white-space:nowrap}.b-blue{background:var(--blue-s);color:var(--blue)}.b-teal{background:var(--teal-s);color:var(--teal)}.b-purple{background:var(--purple-s);color:var(--purple)}.b-amber{background:var(--amber-s);color:var(--amber)}.b-red{background:var(--red-s);color:var(--red)}.b-gray{background:#eef1f6;color:#5c6a7e}.tabs{display:flex;gap:6px;padding:12px 16px 0;overflow-x:auto}.nav{border:1px solid var(--line);background:#fff;color:var(--muted);padding:7px 14px;border-radius:20px;font-size:13px;white-space:nowrap;cursor:pointer;font-family:inherit}.nav.on{background:var(--blue-s);border-color:#bcd3ff;color:var(--blue);font-weight:600}main{padding:14px 16px 0}.view{display:none}.view.on{display:block}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px 18px 20px;margin-bottom:14px}.card h2{font-size:16px;margin:0 0 4px}.desc{color:var(--muted);font-size:12.5px;margin:0 0 14px}label.f{display:block;font-size:12.5px;color:var(--muted);margin:0 0 5px;font-weight:600}input,textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font:inherit;font-size:13px;background:#fff;color:var(--ink)}input:focus,textarea:focus{outline:2px solid var(--blue-s);border-color:var(--blue)}textarea{min-height:88px;resize:vertical}.field{margin-bottom:12px}input[type=range]{padding:0;border:0;height:26px;background:transparent}.btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit}.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600;width:100%;padding:11px}.btn.primary:active{background:#1259c3}.btn.danger{color:var(--red);width:100%;padding:10px}.note{border-left:4px solid var(--blue);background:var(--blue-s);padding:10px 13px;border-radius:0 8px 8px 0;font-size:12.4px;margin:12px 0}.note.warn{border-color:var(--amber);background:var(--amber-s)}.note.ok{border-color:var(--teal);background:var(--teal-s)}.pill-line{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}.chip{border:1px solid var(--line);background:#fff;border-radius:20px;padding:5px 12px;font-size:12px;cursor:pointer}.chip.on{background:var(--blue-s);border-color:#bcd3ff;color:var(--blue);font-weight:600}code{font-family:Consolas,Menlo,monospace;font-size:11.8px;background:var(--code);border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:#164a86}table{width:100%;border-collapse:collapse;font-size:12.6px}th,td{border:1px solid var(--line);padding:7px 10px;text-align:left}td:first-child{color:var(--muted);width:42%}#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:99;display:flex;flex-direction:column;gap:8px;align-items:center}.toast{background:#182334;color:#fff;padding:10px 16px;border-radius:9px;font-size:12.8px;box-shadow:0 6px 22px rgba(0,0,0,.16)}</style></head><body><div class='wrap'><div class='top'><div class='logo'>云端 <span>语音合成控制台</span></div><div class='badges'><span class='badge b-gray' id='bWifi'>Wi-Fi 未知</span><span class='badge b-gray' id='bBle'>BLE 未知</span><span class='badge b-gray' id='bEng'>引擎 未知</span></div></div><div class='tabs'><button class='nav on' data-t='conn'>连接</button><button class='nav' data-t='eng'>引擎</button><button class='nav' data-t='voice'>音色</button><button class='nav' data-t='test'>试听</button></div><main><section class='view on' id='vConn'><div class='card'><h2>Wi-Fi 连接</h2><p class='desc'>只支持 2.4GHz 网络，5GHz 连不上。</p><div class='field'><label class='f'>网络名称 SSID</label><input id='ssid' maxlength='32' placeholder='例如 MyHome'></div><div class='field'><label class='f'>密码</label><input id='pass' type='password' maxlength='64' placeholder='开放网络可留空'></div><div class='note' id='ipNote'>当前未连接</div><button class='btn primary' id='btnConn'>保存并连接</button></div></section><section class='view' id='vEng'><div class='card'><h2>合成引擎</h2><p class='desc'>选一个引擎，填好它的凭据。两套凭据会同时保存，以后想换回来不用重填。</p><div class='pill-line'><span class='chip eng on' data-e='deepseek'>DeepSeek</span><span class='chip eng' data-e='doubao'>豆包 · 火山引擎</span></div><div id='engDs'><p class='desc'>platform.deepseek.com → 左侧 API keys → 创建，得到一串 sk- 开头的密钥。语音合成与对话共用同一个 Key。</p><div class='field'><label class='f'>API Key</label><input id='key' maxlength='127' placeholder='sk-xxxxxxxxxxxxxxxx' autocomplete='off'></div><div class='note'>只需要一个 Key，没有 AppID / Token / cluster 那一套。鉴权头是 <code>Bearer &lt;key&gt;</code>，空格分隔。</div></div><div id='engDb' style='display:none'><p class='desc'>console.volcengine.com → 语音技术 → 语音合成，开通后在「服务接口认证信息」里拿 AppID / Access Token / Cluster。</p><div class='field'><label class='f'>AppID</label><input id='db_appid' maxlength='31' placeholder='例如 3145xxxxxx' autocomplete='off'></div><div class='field'><label class='f'>Access Token</label><input id='db_token' maxlength='127' placeholder='控制台里的 Access Token' autocomplete='off'></div><div class='field'><label class='f'>Cluster</label><input id='db_cluster' maxlength='31' placeholder='volcano_tts'></div><div class='field'><label class='f'>voice_type</label><input id='db_voice' maxlength='63' placeholder='BV700_streaming'></div><div class='note warn'>鉴权头是 <code>Bearer;&lt;token&gt;</code>，<b>分号</b>分隔，不是空格 —— 这里最容易写错。</div><div class='note warn'>豆包后端<b>尚未接入</b>：V1 是非流式接口，整段音频以 base64塞在 JSON 里一次返回，长句会撑爆内存。现在切过去只会回 <code>ERR:ENGINE</code>。</div></div><button class='btn primary' id='btnEng'>保存引擎配置</button></div></section><section class='view' id='vVoice'><div class='card'><h2>音色</h2><p class='desc'>这一页只对 DeepSeek 生效，它只有两个发音人。切到豆包时音色在「引擎」页填 voice_type。</p><div class='pill-line'><span class='chip on' data-v='stella'>海星 · 女声</span><span class='chip' data-v='tide'>暗潮 · 男声</span></div><div class='field'><label class='f'>voice_id</label><input id='voice' maxlength='15' value='stella' readonly></div><div class='note warn'>这个接口<b>不支持调语速和音量</b>，官网上写明了。要变速只能改文本本身（比如加「慢一点说」这类提示对 TTS 无效，实际得靠标点控制停顿）。</div><button class='btn primary' id='btnVoice'>保存</button></div></section><section class='view' id='vTest'><div class='card'><h2>试听</h2><p class='desc'>先把「连接」和「引擎」填好。设备正在播放时再点会排队。</p><div class='field'><textarea id='text'>你好，我是 ESP32-S31 语音模块，现在的声音来自云端合成。</textarea></div><button class='btn primary' id='btnTest'>播放试听</button></div><div class='card'><h2>设备状态</h2><table><tbody id='stateTable'><tr><td>加载中</td><td>…</td></tr></tbody></table></div><div class='card'><h2>恢复出厂</h2><p class='desc'>清空 Wi-Fi 与密钥，清完自动重启。</p><button class='btn danger' id='btnReset'>清空配置</button></div></section></main></div><div id='toast'></div><script>var $=function(i){return document.getElementById(i)};var state={};function toast(m){var d=document.createElement('div');d.className='toast';d.textContent=m;$('toast').appendChild(d);setTimeout(function(){d.remove()},2600)}function setBadge(id,txt,cls){var e=$(id);e.textContent=txt;e.className='badge '+cls}document.querySelectorAll('.nav').forEach(function(b){b.addEventListener('click',function(){document.querySelectorAll('.nav').forEach(function(x){x.classList.remove('on')});b.classList.add('on');document.querySelectorAll('.view').forEach(function(v){v.classList.remove('on')});$('v'+b.dataset.t.charAt(0).toUpperCase()+b.dataset.t.slice(1)).classList.add('on');})});var tVoice=0,tEng=0;document.querySelectorAll('.chip[data-v]').forEach(function(c){c.addEventListener('click',function(){$('voice').value=c.dataset.v;tVoice=1;document.querySelectorAll('.chip[data-v]').forEach(function(x){x.classList.remove('on')});c.classList.add('on')})});function showEngine(e){document.querySelectorAll('.eng').forEach(function(x){x.classList.toggle('on',x.dataset.e===e)});$('engDs').style.display=(e==='deepseek')?'':'none';$('engDb').style.display=(e==='doubao')?'':'none'}document.querySelectorAll('.eng').forEach(function(c){c.addEventListener('click',function(){tEng=1;showEngine(c.dataset.e)})});function post(url,obj){var b=new URLSearchParams();for(var k in obj){if(obj[k]!==undefined)b.set(k,obj[k])}return fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b}).then(function(r){return r.json()}).catch(function(){return {ok:0,err:'网络错误'}})}function fill(s){state=s;if(s.wifi){setBadge('bWifi','Wi-Fi 已连接','b-teal')}else{setBadge('bWifi','Wi-Fi 未连接','b-red')}setBadge('bBle',s.ble?'BLE 已连接':'BLE 广播中',s.ble?'b-purple':'b-gray');var en=s.engine||'deepseek';var enName=(en==='doubao')?'豆包':'DeepSeek';setBadge('bEng',enName+(s.ready?' 就绪':' 未配置'),s.ready?'b-blue':'b-amber');if(!tEng){showEngine(en)}$('ipNote').textContent=s.wifi?('已连接 '+s.ssid+'，IP '+s.ip):'当前未连接，请填写下面的网络信息';$('ipNote').className='note'+(s.wifi?' ok':'');if(s.voice&&!tVoice){$('voice').value=s.voice;document.querySelectorAll('.chip[data-v]').forEach(function(x){x.classList.toggle('on',x.dataset.v===s.voice)})}if(s.has_key){$('key').placeholder='已保存，留空表示不修改'}if(s.has_token){$('db_token').placeholder='已保存，留空表示不修改'}if(s.db_appid){$('db_appid').value=s.db_appid}if(s.db_cluster){$('db_cluster').value=s.db_cluster}if(s.db_voice){$('db_voice').value=s.db_voice}if(s.ssid){$('ssid').value=s.ssid}var rows=[['Wi-Fi',s.wifi?('已连接 '+s.ssid):'未连接'],['IP',s.wifi?s.ip:'-'],['BLE',s.ble?'手机已连接':'广播中'],['引擎',enName+(s.ready?' · 就绪':' · 缺凭据')],['音色',(en==='doubao')?(s.db_voice||'-'):(s.voice||'-')],['播放',s.busy?'正在播放':'空闲'],['热点','kskbl-setup (192.168.4.1)']];$('stateTable').innerHTML=rows.map(function(r){return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>'}).join('')}function poll(){fetch('/api/state').then(function(r){return r.json()}).then(function(s){if(!state.init){fill(s);state.init=1}else{var ini=state.init;fill(s);state.init=ini}}).catch(function(){setBadge('bWifi','控制台断开','b-red')})}$('btnConn').addEventListener('click',function(){post('/api/save',{ssid:$('ssid').value,pass:$('pass').value}).then(function(j){toast(j.ok?'已保存，正在连接…':(j.err||'失败'));setTimeout(poll,1200)})});$('btnEng').addEventListener('click',function(){var e=document.querySelector('.eng.on').dataset.e;post('/api/save',{engine:e,key:$('key').value,db_appid:$('db_appid').value,db_token:$('db_token').value,db_cluster:$('db_cluster').value,db_voice:$('db_voice').value}).then(function(j){toast(j.ok?'引擎配置已保存':(j.err||'失败'));if(j.ok){tEng=0;$('key').value='';$('db_token').value=''}poll()})});$('btnVoice').addEventListener('click',function(){post('/api/save',{voice:$('voice').value}).then(function(j){toast(j.ok?'音色已保存':(j.err||'失败'));if(j.ok)tVoice=0;poll()})});$('btnTest').addEventListener('click',function(){post('/api/test',{text:$('text').value}).then(function(j){toast(j.ok?'已发送，留意喇叭':(j.err||'失败'))})});$('btnReset').addEventListener('click',function(){if(!confirm('确定清空全部配置？'))return;post('/api/reset',{}).then(function(){toast('已清空，设备重启中…')})});poll();setInterval(poll,3000);</script>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#f5f7fb">
+<title>语音合成控制台</title>
+<style>
+:root{
+  --bg:#f5f7fb;--card:#fff;--ink:#141c2b;--muted:#66748c;--line:#e4eaf3;
+  --blue:#2563eb;--blue-s:#eef4ff;--teal:#0d9488;--teal-s:#e9f8f5;
+  --purple:#7c3aed;--purple-s:#f3edff;--amber:#b45309;--amber-s:#fff5e6;
+  --red:#c0392b;--red-s:#fdf0ee;--r:14px;
+  --sh:0 1px 2px rgba(20,28,43,.04),0 10px 26px -16px rgba(20,28,43,.28);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{
+  background:var(--bg);color:var(--ink);
+  font:15px/1.6 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,p,dl,dd{margin:0}
+button{font-family:inherit}
+
+/* ---------- 顶栏 ---------- */
+.hd{position:sticky;top:0;z-index:20;background:rgba(247,249,253,.9);
+  -webkit-backdrop-filter:saturate(180%) blur(14px);backdrop-filter:saturate(180%) blur(14px);
+  border-bottom:1px solid var(--line)}
+.hd-in{max-width:820px;margin:0 auto;padding:12px 14px 10px}
+.hd-row{display:flex;align-items:center;gap:10px}
+.brand{display:flex;align-items:center;gap:10px;flex:1;min-width:0}
+.brand-ico{flex:0 0 auto;width:36px;height:36px;border-radius:11px;display:grid;place-items:center;
+  color:#fff;background:linear-gradient(135deg,#4f8cf7,#2563eb);
+  box-shadow:0 8px 16px -8px rgba(37,99,235,.9)}
+.btext{min-width:0;flex:1}
+.btext h1{font-size:15.5px;font-weight:700;letter-spacing:.2px;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis}
+.devbtn{display:inline-flex;align-items:center;gap:4px;max-width:100%;padding:1px 0;border:0;
+  background:none;color:var(--muted);font-size:11.5px;cursor:pointer;text-align:left}
+.devbtn:hover{color:var(--blue)}
+.devbtn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.devbtn svg{flex:0 0 auto;opacity:.7}
+.icon-btn{flex:0 0 auto;width:36px;height:36px;display:grid;place-items:center;border-radius:10px;
+  border:1px solid var(--line);background:#fff;color:#4a5872;cursor:pointer;transition:.15s}
+.icon-btn:active{transform:translateY(1px)}
+.icon-btn.spin svg{animation:sp .7s linear infinite}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.st{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;
+  padding:4px 9px;border-radius:999px;background:#eef1f6;color:#5c6a7e;transition:.2s}
+.st::before{content:'';width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.9}
+.st.ok{background:var(--teal-s);color:var(--teal)}
+.st.off{background:var(--red-s);color:var(--red)}
+.st.warn{background:var(--amber-s);color:var(--amber)}
+.st.info{background:var(--blue-s);color:var(--blue)}
+.st.ble{background:var(--purple-s);color:var(--purple)}
+.banner{display:none;align-items:flex-start;gap:7px;margin-top:10px;padding:9px 11px;border-radius:10px;
+  background:var(--red-s);color:#9b2c1f;border:1px solid #f6d9d4;font-size:12.5px;line-height:1.5}
+.banner.on{display:flex}
+.banner svg{flex:0 0 auto;margin-top:1px}
+
+/* ---------- 标签页 ---------- */
+.tabs{max-width:820px;margin:0 auto;display:flex;gap:6px;padding:10px 10px 0;
+  overflow-x:auto;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:9px 13px;border-radius:10px;
+  border:1px solid transparent;background:transparent;color:var(--muted);
+  font-size:13px;font-weight:600;cursor:pointer;transition:.15s;white-space:nowrap}
+.tab svg{opacity:.85}
+.tab.on{background:#fff;color:var(--blue);border-color:#d8e5ff;
+  box-shadow:0 3px 10px -6px rgba(37,99,235,.75)}
+
+/* ---------- 主体 ---------- */
+main{max-width:820px;margin:0 auto;padding:12px 10px 28px}
+.view{display:none}
+.view.on{display:block;animation:fade .2s ease}
+@keyframes fade{from{transform:translateY(5px)}to{transform:none}}
+@keyframes sp{to{transform:rotate(360deg)}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);
+  padding:15px;margin-bottom:12px;box-shadow:var(--sh)}
+.card h2{font-size:15px;font-weight:700;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.desc{color:var(--muted);font-size:12.5px;line-height:1.6;margin-top:4px}
+
+.metrics{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
+.metric{border:1px solid var(--line);border-radius:11px;padding:10px 11px;background:#fbfcfe;min-width:0}
+.metric .k{display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--muted)}
+.metric .v{font-size:13.5px;font-weight:700;margin-top:3px;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis}
+.metric .s{font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.foot-line{margin-top:10px;font-size:11.5px;color:#8a97ad;display:flex;align-items:center;gap:6px;
+  flex-wrap:wrap}
+.metrics.stale,.kv.stale{opacity:.45;filter:saturate(.4)}
+
+.field{margin-top:12px}
+.field label{display:block;font-size:12.5px;font-weight:600;color:#4a5872;margin-bottom:6px}
+.wrap-in{position:relative}
+input[type=text],input[type=password],textarea{
+  width:100%;border:1px solid var(--line);border-radius:10px;padding:11px 12px;
+  font:inherit;font-size:16px;background:#fff;color:var(--ink);
+  transition:border-color .15s,box-shadow .15s}
+input[type=text]:focus,input[type=password]:focus,textarea:focus{
+  outline:none;border-color:#a8c4f8;box-shadow:0 0 0 3px rgba(37,99,235,.13)}
+input[readonly]{background:#f7f9fc;color:#5c6a7e}
+textarea{min-height:96px;resize:vertical;line-height:1.6}
+.wrap-in input{padding-right:46px}
+.eye{position:absolute;right:5px;top:50%;transform:translateY(-50%);border:0;background:transparent;
+  color:#8a97ad;padding:8px;border-radius:8px;cursor:pointer;line-height:0}
+.eye.on{color:var(--blue)}
+.hint{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5}
+
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line);
+  background:#fff;color:var(--ink);border-radius:10px;padding:10px 14px;
+  font-size:14px;font-weight:600;cursor:pointer;transition:.15s}
+.btn:active{transform:translateY(1px)}
+.btn.block{width:100%;padding:13px;font-size:15px;margin-top:14px}
+.btn.p{background:linear-gradient(135deg,#4189f7,#2563eb);border-color:#2563eb;color:#fff;
+  box-shadow:0 10px 20px -12px rgba(37,99,235,1)}
+.btn.d{color:#b3261e;border-color:#f2d5d2;background:#fffbfa}
+.btn.d.armed{background:#fdecea;border-color:#e9a9a1;font-weight:700}
+.btn[disabled]{opacity:.6;cursor:not-allowed;transform:none}
+.btn.busy::before{content:'';width:13px;height:13px;border-radius:50%;
+  border:2px solid rgba(255,255,255,.45);border-top-color:#fff;animation:sp .7s linear infinite}
+.btn:not(.p).busy::before{border-color:rgba(37,99,235,.25);border-top-color:var(--blue)}
+.row{display:flex;gap:8px;margin-top:14px}
+.row .btn{flex:1}
+
+.opts{display:grid;gap:8px;margin-top:12px}
+.opt{display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:12px;
+  border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;transition:.15s}
+.opt:hover{border-color:#c9d9f5}
+.opt.on{border-color:#9fc0fb;background:linear-gradient(180deg,#f8fbff,#edf4ff);
+  box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.opt .dot{flex:0 0 auto;width:16px;height:16px;border-radius:50%;border:2px solid #c9d3e2;position:relative}
+.opt.on .dot{border-color:var(--blue)}
+.opt.on .dot::after{content:'';position:absolute;inset:3px;border-radius:50%;background:var(--blue)}
+.opt .body{min-width:0;flex:1}
+.opt .t{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;flex-wrap:wrap}
+.opt .d{font-size:12px;color:var(--muted);margin-top:1px;line-height:1.5}
+.tag{font-size:10.5px;font-weight:700;padding:2px 6px;border-radius:5px;background:#eef1f6;color:#5c6a7e}
+.tag.b{background:var(--blue-s);color:var(--blue)}
+.tag.g{background:var(--teal-s);color:var(--teal)}
+.tag.a{background:var(--amber-s);color:var(--amber)}
+.tag.r{background:var(--red-s);color:var(--red)}
+
+.note{border-radius:10px;padding:11px 12px;font-size:12.5px;line-height:1.6;margin-top:12px;
+  background:var(--blue-s);color:#1e40af;border:1px solid #dbe8ff}
+.note.warn{background:#fff8ec;color:#8a4b06;border-color:#f7e3c3}
+.note.ok{background:#eefaf7;color:#0b6b61;border-color:#cdeee8}
+details.tip{margin-top:12px;border:1px dashed var(--line);border-radius:10px;padding:0 12px;background:#fbfcfe}
+details.tip summary{cursor:pointer;list-style:none;padding:10px 0;font-size:12.5px;font-weight:600;color:#3f4d66}
+details.tip summary::-webkit-details-marker{display:none}
+details.tip summary::before{content:'?';display:inline-grid;place-items:center;width:16px;height:16px;
+  margin-right:7px;border-radius:50%;background:#e7eefb;color:var(--blue);
+  font-size:10px;vertical-align:-3px}
+details.tip[open] summary{border-bottom:1px dashed var(--line);margin-bottom:2px}
+details.tip .bd{font-size:12.5px;color:var(--muted);line-height:1.75;padding:9px 0 12px}
+details.tip .bd b{color:#3f4d66}
+code{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:11.8px;background:#f4f7fc;
+  border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:#164a86;word-break:break-all}
+
+.counter{display:flex;justify-content:space-between;gap:10px;margin-top:6px;font-size:11.5px;color:var(--muted)}
+.counter.over{color:var(--red);font-weight:700}
+.presets{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.preset{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 11px;
+  font-size:12px;color:#3f4d66;cursor:pointer;transition:.15s;max-width:100%;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.preset:hover{border-color:#bcd3ff;color:var(--blue)}
+.play-line{display:flex;align-items:center;gap:7px;margin-top:10px;font-size:12.5px;color:var(--muted)}
+.pulse{width:7px;height:7px;border-radius:50%;background:#c9d3e2;flex:0 0 auto}
+.pulse.on{background:var(--teal);box-shadow:0 0 0 4px rgba(13,148,136,.16);animation:pulse 1.4s infinite}
+@keyframes pulse{50%{box-shadow:0 0 0 7px rgba(13,148,136,.05)}}
+
+.kv{display:grid;grid-template-columns:auto 1fr;gap:9px 14px;margin-top:10px;font-size:13px}
+.kv dt{color:var(--muted);font-size:12.5px;white-space:nowrap}
+.kv dd{text-align:right;font-weight:600;word-break:break-all}
+
+/* ---------- 设备列表 ---------- */
+.devlist{display:grid;gap:8px;margin-top:12px}
+.dev{display:flex;align-items:center;gap:10px;padding:10px 11px;border:1px solid var(--line);
+  border-radius:12px;background:#fff;cursor:pointer;transition:.15s}
+.dev:hover{border-color:#c9d9f5}
+.dev.on{border-color:#9fc0fb;background:linear-gradient(180deg,#f8fbff,#edf4ff);
+  box-shadow:0 0 0 3px rgba(37,99,235,.08)}
+.dott{width:8px;height:8px;border-radius:50%;background:#cdd6e3;flex:0 0 auto}
+.dott.ok{background:var(--teal);box-shadow:0 0 0 3px rgba(13,148,136,.16)}
+.dott.no{background:var(--red);box-shadow:0 0 0 3px rgba(192,57,43,.13)}
+.di{min-width:0;flex:1}
+.dn{display:flex;align-items:center;gap:6px;font-size:14px;font-weight:700;min-width:0}
+.dn span.nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.du{display:block;font-size:11.5px;color:var(--muted);white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;line-height:1.5}
+.du a{color:inherit;text-decoration:none;border-bottom:1px dashed #cdd6e3}
+.da{display:flex;gap:2px;flex:0 0 auto}
+.mini{width:30px;height:30px;display:grid;place-items:center;border:0;background:transparent;
+  color:#93a0b4;border-radius:8px;cursor:pointer;transition:.15s}
+.mini:hover{background:#f1f5fb;color:var(--blue)}
+.mini.del:hover{background:#fdecea;color:#b3261e}
+.mini.armed{background:#fdecea;color:#b3261e}
+.ren{font-size:14px;font-weight:700;padding:4px 8px;border:1px solid #a8c4f8;border-radius:7px;
+  width:100%;font-family:inherit;min-width:0}
+.chk{display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12.5px;color:#3f4d66;
+  cursor:pointer;user-select:none}
+.chk input{width:16px;height:16px;accent-color:var(--blue);margin:0;flex:0 0 auto}
+.emptybox{text-align:center;padding:18px 8px 8px;color:var(--muted);font-size:12.5px;line-height:1.8}
+.share{margin-top:10px;padding:10px 11px;border:1px solid var(--line);border-radius:10px;
+  background:#f7f9fc;font-family:ui-monospace,Consolas,Menlo,monospace;font-size:11.5px;
+  color:#164a86;word-break:break-all;line-height:1.6;min-height:38px}
+.share.empty{color:#93a0b4;font-family:inherit;font-size:12px}
+
+#toast{position:fixed;left:0;right:0;bottom:calc(16px + env(safe-area-inset-bottom));z-index:99;
+  display:flex;flex-direction:column;align-items:center;gap:8px;padding:0 14px;pointer-events:none}
+.toast{pointer-events:auto;width:100%;max-width:420px;background:#fff;color:var(--ink);
+  border:1px solid var(--line);border-left:3px solid var(--blue);border-radius:11px;
+  padding:11px 13px;font-size:13px;line-height:1.5;
+  box-shadow:0 14px 34px -14px rgba(20,28,43,.45);animation:tin .2s ease}
+.toast.ok{border-left-color:var(--teal)}
+.toast.err{border-left-color:var(--red)}
+@keyframes tin{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.ft{max-width:820px;margin:0 auto;padding:2px 14px 26px;text-align:center;
+  font-size:11.5px;color:#93a0b4;line-height:1.9}
+@media (min-width:560px){
+  .metrics{grid-template-columns:repeat(4,1fr)}
+  .opts{grid-template-columns:1fr 1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  *{animation:none!important;transition:none!important}
+}
+</style>
+</head>
+<body>
+
+<header class="hd">
+  <div class="hd-in">
+    <div class="hd-row">
+      <div class="brand">
+        <div class="brand-ico">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round">
+            <path d="M4 10v4M8 6v12M12 3v18M16 7v10M20 10v4"/>
+          </svg>
+        </div>
+        <div class="btext">
+          <h1>语音合成控制台</h1>
+          <button class="devbtn" id="devSwitch" type="button" title="切换设备">
+            <span id="curName">未选择设备</span>
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+        </div>
+      </div>
+      <button class="icon-btn" id="btnRefresh" aria-label="立即刷新设备状态">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 5v6h-6"/>
+        </svg>
+      </button>
+    </div>
+    <div class="chips">
+      <span class="st" id="bLink">未选择设备</span>
+      <span class="st" id="bWifi">Wi-Fi 未知</span>
+      <span class="st" id="bBle">BLE 未知</span>
+      <span class="st" id="bEng">引擎 未知</span>
+    </div>
+    <div class="banner" id="banner" role="status">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round">
+        <path d="M12 8v5M12 16.5h.01"/><circle cx="12" cy="12" r="9"/>
+      </svg>
+      <span id="bannerTxt">与控制台断开，正在重试…</span>
+    </div>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="控制台分区">
+  <button class="tab on" role="tab" aria-selected="true" data-t="conn">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M5 12.5a10 10 0 0 1 14 0M8 16a6 6 0 0 1 8 0M12 19.5h.01"/></svg>
+    连接
+  </button>
+  <button class="tab" role="tab" aria-selected="false" data-t="eng">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+    引擎
+  </button>
+  <button class="tab" role="tab" aria-selected="false" data-t="voice">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M12 4v16M8 8v8M16 8v8M4 11v2M20 11v2"/></svg>
+    音色
+  </button>
+  <button class="tab" role="tab" aria-selected="false" data-t="test">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
+    试听
+  </button>
+  <button class="tab" role="tab" aria-selected="false" data-t="dev">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="7" rx="1.6"/><rect x="14" y="4" width="7" height="7" rx="1.6"/><rect x="3" y="13" width="7" height="7" rx="1.6"/><rect x="14" y="13" width="7" height="7" rx="1.6"/></svg>
+    设备
+  </button>
+</nav>
+
+<main>
+
+  <!-- ============ 连接 ============ -->
+  <section class="view on" id="vConn" role="tabpanel" aria-label="连接">
+    <div class="card">
+      <h2>设备概况</h2>
+      <div class="metrics" id="metricsBox">
+        <div class="metric">
+          <div class="k">Wi-Fi</div>
+          <div class="v" id="mWifi">—</div>
+          <div class="s" id="mWifiS">等待数据</div>
+        </div>
+        <div class="metric">
+          <div class="k">引擎</div>
+          <div class="v" id="mEng">—</div>
+          <div class="s" id="mEngS">等待数据</div>
+        </div>
+        <div class="metric">
+          <div class="k">音色</div>
+          <div class="v" id="mVoice">—</div>
+          <div class="s" id="mVoiceS">等待数据</div>
+        </div>
+        <div class="metric">
+          <div class="k">播放</div>
+          <div class="v" id="mPlay">—</div>
+          <div class="s" id="mPlayS">等待数据</div>
+        </div>
+      </div>
+      <p class="foot-line">
+        <span>状态更新于 <b id="upd">—</b></span><span>·</span><span>每 3 秒自动刷新</span>
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>Wi-Fi 连接</h2>
+      <p class="desc">只支持 2.4GHz 网络，5GHz 连不上。保存后设备会自动重连，约 5～20 秒。</p>
+      <div class="field">
+        <label for="ssid">网络名称 SSID</label>
+        <input id="ssid" type="text" maxlength="32" placeholder="例如 MyHome" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </div>
+      <div class="field">
+        <label for="pass">密码</label>
+        <div class="wrap-in">
+          <input id="pass" type="password" maxlength="64" placeholder="开放网络可留空" autocomplete="off">
+          <button class="eye" id="eye" type="button" aria-label="显示密码" aria-pressed="false">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>
+            </svg>
+          </button>
+        </div>
+        <p class="hint">密码不会被回显，也不显示已保存的密码。</p>
+      </div>
+      <div class="note" id="ipNote">等待设备数据</div>
+      <button class="btn p block" id="btnConn">保存并连接</button>
+      <details class="tip">
+        <summary>连不上怎么办</summary>
+        <div class="bd">
+          <b>1. 确认是 2.4GHz</b>：双频路由器常把两个频段同名，先把 5GHz 关掉或改名再试。<br>
+          <b>2. 密码区分大小写</b>，注意首尾空格。<br>
+          <b>3. 隐藏 SSID 连不上</b>：需要先在路由器上开放广播。<br>
+          <b>4. 保存后页面会断一下</b>：设备切到新网络时热点会短暂消失，等它回来再刷新。
+        </div>
+      </details>
+    </div>
+  </section>
+
+  <!-- ============ 引擎 ============ -->
+  <section class="view" id="vEng" role="tabpanel" aria-label="引擎">
+    <div class="card">
+      <h2>合成引擎 <span class="tag a" id="engDirty" style="display:none">未保存</span></h2>
+      <p class="desc">选一个引擎并填好它的凭据。两套凭据会同时保存，以后换回来不用重填。</p>
+      <div class="opts" role="radiogroup" aria-label="合成引擎">
+        <button class="opt on" role="radio" aria-checked="true" data-e="deepseek">
+          <span class="dot"></span>
+          <span class="body">
+            <span class="t">DeepSeek <span class="tag b" id="tagDs">—</span></span>
+            <span class="d">一个 API Key 搞定，流式返回</span>
+          </span>
+        </button>
+        <button class="opt" role="radio" aria-checked="false" data-e="doubao">
+          <span class="dot"></span>
+          <span class="body">
+            <span class="t">豆包 · 火山引擎 <span class="tag r">未接入</span></span>
+            <span class="d">需要 AppID + Access Token + Cluster</span>
+          </span>
+        </button>
+      </div>
+      <p class="hint" id="engNow">当前设备使用：—</p>
+
+      <div id="engDs">
+        <div class="field">
+          <label for="key">API Key</label>
+          <input id="key" type="text" maxlength="127" placeholder="sk-xxxxxxxxxxxxxxxx" autocomplete="off" autocapitalize="off" spellcheck="false">
+        </div>
+        <div class="note">只需要一个 Key，没有 AppID / Token / cluster 那一套。鉴权头是 <code>Bearer &lt;key&gt;</code>，空格分隔。</div>
+        <details class="tip">
+          <summary>Key 从哪里拿</summary>
+          <div class="bd">
+            platform.deepseek.com → 左侧 <b>API keys</b> → 创建，得到一串 <code>sk-</code> 开头的密钥。
+            语音合成与对话共用同一个 Key。<b>Key 只存在设备 NVS 里</b>，页面上只会显示「已保存」，读不回来。
+          </div>
+        </details>
+      </div>
+
+      <div id="engDb" style="display:none">
+        <div class="field">
+          <label for="db_appid">AppID</label>
+          <input id="db_appid" type="text" maxlength="31" placeholder="例如 3145xxxxxx" autocomplete="off" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label for="db_token">Access Token</label>
+          <input id="db_token" type="text" maxlength="127" placeholder="控制台里的 Access Token" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="field">
+          <label for="db_cluster">Cluster</label>
+          <input id="db_cluster" type="text" maxlength="31" placeholder="volcano_tts" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="field">
+          <label for="db_voice">voice_type</label>
+          <input id="db_voice" type="text" maxlength="63" placeholder="BV700_streaming" autocomplete="off" spellcheck="false">
+        </div>
+        <div class="note warn">鉴权头是 <code>Bearer;&lt;token&gt;</code>，<b>分号</b>分隔，不是空格 —— 这里最容易写错。</div>
+        <div class="note warn">豆包后端<b>尚未接入</b>：V1 是非流式接口，整段音频以 base64 塞在 JSON 里一次返回，长句会撑爆内存。现在切过去只会回 <code>ERR:ENGINE</code>，凭据可以先存着。</div>
+      </div>
+
+      <button class="btn p block" id="btnEng">保存引擎配置</button>
+      <p class="hint">敏感字段留空 = 不修改，不会把已保存的密钥抹掉。</p>
+    </div>
+  </section>
+
+  <!-- ============ 音色 ============ -->
+  <section class="view" id="vVoice" role="tabpanel" aria-label="音色">
+    <div class="card">
+      <h2>音色 <span class="tag a" id="voiceDirty" style="display:none">未保存</span></h2>
+      <p class="desc">这一页只对 DeepSeek 生效，它只有两个发音人。切到豆包时音色在「引擎」页填 voice_type。</p>
+      <div class="opts" role="radiogroup" aria-label="发音人">
+        <button class="opt on" role="radio" aria-checked="true" data-v="stella">
+          <span class="dot"></span>
+          <span class="body">
+            <span class="t">海星 · 女声</span>
+            <span class="d">默认音色，中频偏亮</span>
+          </span>
+        </button>
+        <button class="opt" role="radio" aria-checked="false" data-v="tide">
+          <span class="dot"></span>
+          <span class="body">
+            <span class="t">暗潮 · 男声</span>
+            <span class="d">偏低沉，适合播报</span>
+          </span>
+        </button>
+      </div>
+      <div class="field">
+        <label for="voice">voice_id</label>
+        <input id="voice" type="text" maxlength="15" value="stella" readonly>
+      </div>
+      <div class="note warn">这个接口<b>不支持调语速和音量</b>，官网上写明了。要变速只能改文本本身（加「慢一点说」这类提示对 TTS 无效，实际得靠标点控制停顿）。</div>
+      <div class="row">
+        <button class="btn" id="btnVoice">保存音色</button>
+        <button class="btn p" id="btnVoicePlay">保存并试听</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 试听 ============ -->
+  <section class="view" id="vTest" role="tabpanel" aria-label="试听">
+    <div class="card">
+      <h2>试听</h2>
+      <p class="desc">先把「连接」和「引擎」填好。设备正在播放时再点会排队。</p>
+      <div class="field">
+        <label for="text">要念的内容</label>
+        <textarea id="text" placeholder="输入一句话，点下面的按钮送到设备喇叭">你好，我是语音合成模块，现在的声音来自云端合成。</textarea>
+        <div class="counter" id="counter">
+          <span id="cntText">0 字</span>
+          <span id="cntByte">0 / 500 字节</span>
+        </div>
+        <div class="presets">
+          <button class="preset" type="button" data-p="你好，我是语音合成模块。">自我介绍</button>
+          <button class="preset" type="button" data-p="测试一二三四五，六七八九十。">数字测试</button>
+          <button class="preset" type="button" data-p="第一句。停一下。第二句，语速靠标点控制。">停顿测试</button>
+        </div>
+      </div>
+      <div class="play-line">
+        <span class="pulse" id="playPulse"></span>
+        <span id="playTxt">等待指令</span>
+      </div>
+      <label class="chk" id="bulkWrap" style="display:none">
+        <input type="checkbox" id="bulk">
+        同时发送到全部设备
+        <span class="tag b" id="bulkCnt">0 台</span>
+      </label>
+      <button class="btn p block" id="btnTest">播放试听</button>
+      <p class="hint" id="testHint">—</p>
+    </div>
+
+    <div class="card">
+      <h2>设备状态</h2>
+      <dl class="kv">
+        <dt>设备</dt><dd id="kName">—</dd>
+        <dt>地址</dt><dd id="kUrl">—</dd>
+        <dt>Wi-Fi</dt><dd id="kNet">—</dd>
+        <dt>IP 地址</dt><dd id="kIp">—</dd>
+        <dt>BLE</dt><dd id="kble">—</dd>
+        <dt>引擎</dt><dd id="kEng">—</dd>
+        <dt>音色</dt><dd id="kVoice">—</dd>
+        <dt>播放</dt><dd id="kPlay">—</dd>
+      </dl>
+    </div>
+
+    <div class="card">
+      <h2>恢复出厂</h2>
+      <p class="desc">清空当前设备的 Wi-Fi 与全部密钥，清完自动重启。此操作不可撤销。</p>
+      <button class="btn d block" id="btnReset">清空当前设备配置</button>
+    </div>
+  </section>
+
+  <!-- ============ 设备 ============ -->
+  <section class="view" id="vDev" role="tabpanel" aria-label="设备">
+    <div class="card">
+      <h2>设备列表 <span class="tag" id="devCount">0 台</span></h2>
+      <p class="desc">点一行切换当前设备。连接、引擎、音色、试听都只作用于当前设备。</p>
+      <div class="devlist" id="devList"></div>
+      <div class="emptybox" id="devEmpty" style="display:none">
+        还没有设备。<br>在下面添加一台，或直接从设备页面打开的地址里复制过来。
+      </div>
+      <button class="btn block" id="btnAddLocal" style="display:none">添加当前这台设备</button>
+    </div>
+
+    <div class="card">
+      <h2>添加设备</h2>
+      <div class="field">
+        <label for="fName">名称（可留空）</label>
+        <input id="fName" type="text" maxlength="24" placeholder="例如 客厅喇叭" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="fUrl">地址</label>
+        <input id="fUrl" type="text" maxlength="120" placeholder="192.168.4.1 或 http://192.168.1.50" autocomplete="off" autocapitalize="off" spellcheck="false">
+      </div>
+      <p class="hint">只填 IP、带端口、带协议、粘贴整条链接都行；不写协议时按 http 处理。</p>
+      <button class="btn p block" id="btnAddDev">添加并切换</button>
+    </div>
+
+    <div class="card">
+      <h2>分享当前设备</h2>
+      <p class="desc">把下面的链接发给同一局域网内的另一台电脑，打开就自动带上这台设备，不用再手填地址。</p>
+      <div class="share empty" id="shareBox">先选择一台设备</div>
+      <button class="btn block" id="btnCopy">复制链接</button>
+      <p class="hint" id="shareHint">—</p>
+    </div>
+
+    <div class="card">
+      <h2>跨设备是怎么连上的</h2>
+      <p class="desc">固件没有开放跨域头，所以跨设备不能直连。本页用两种通道：</p>
+      <details class="tip" open>
+        <summary>同源与中继</summary>
+        <div class="bd">
+          <b>同源</b>：直接打开设备自己的页面（例如 <code>http://192.168.4.1</code>），页面与设备同源，直连读写。<br>
+          <b>中继</b>：从别处打开时，页面在后台加载目标设备的首页（也就是本页），由它代发请求再回传。<b>要求目标设备固件里跑的是本页版本</b>；老固件里的旧页面不会回应，会提示「设备页面无响应」。<br>
+          <b>https 页面访问 http 设备会被浏览器拦</b>（混合内容），这种情况请用本地文件或 http 部署打开。
+        </div>
+      </details>
+      <details class="tip">
+        <summary>能用几台</summary>
+        <div class="bd">
+          每台中继设备会占用一个后台 iframe 和一条常驻连接，建议不超过 <b>6 台</b>。设备与手机／电脑要在同一局域网，跨网段、跨 VLAN 一般不通。
+        </div>
+      </details>
+      <details class="tip">
+        <summary>为什么不用 https</summary>
+        <div class="bd">
+          https 页面会被浏览器<b>禁止</b>访问 <code>http://192.168.x.x</code>（混合内容），所以本页必须用 <b>http</b> 打开才能控制板子；板子固件本身也只提供 http，没有证书。<br>
+          想让别的电脑用固定网址打开：在局域网内任意一台机器上进到本文件所在目录，执行 <code>python -m http.server 8080</code>，别人的浏览器打开 <code>http://那台机器IP:8080/</code> 即可；不在同一网络则连不到板子。
+        </div>
+      </details>
+    </div>
+  </section>
+
+</main>
+
+<p class="ft">同一份页面可直接嵌进设备固件，也可单独部署为管理站</p>
+<div id="toast" aria-live="polite"></div>
+
 <script>
-/* offline preview only: fake the device API so the UI renders without the board */
+/* 离线预览专用：仅在 file:// 或 localhost 打开时启用示例设备。
+   只拦截文档保留地址 192.0.2.x，真实设备地址一律走真实请求。 */
 (function () {
-  var _fetch = window.fetch;
-  window.fetch = function (url, opt) {
-    var s = String(url);
-    if (s.indexOf('/api/state') >= 0) {
-      return Promise.resolve({
-        json: function () {
-          return Promise.resolve({
-            wifi: 1, ip: '192.168.1.86', ssid: 'MyHome', ble: 0, ready: 1,
-            voice: 'stella', has_key: 1, busy: 0
-          });
-        }
-      });
-    }
-    if (s.indexOf('/api/') >= 0) {
-      return Promise.resolve({ json: function () { return Promise.resolve({ ok: 1 }); } });
-    }
-    return _fetch.apply(this, arguments);
+  var p = location.protocol, h = location.hostname;
+  var demo = (p === 'file:' || h === 'localhost' || h === '127.0.0.1');
+  if (!demo) { return; }
+  var db = {
+    'http://192.0.2.10': { wifi: 1, ip: '192.168.1.86', ssid: 'MyHome', ble: 0, ready: 1,
+      engine: 'deepseek', voice: 'stella', has_key: 1, has_token: 0,
+      db_appid: '', db_cluster: 'volcano_tts', db_voice: '', busy: 0 },
+    'http://192.0.2.11': { wifi: 0, ip: '-', ssid: '', ble: 1, ready: 0,
+      engine: 'doubao', voice: 'stella', has_key: 1, has_token: 1,
+      db_appid: '3145001', db_cluster: 'volcano_tts', db_voice: 'BV700_streaming', busy: 0 }
   };
-  document.addEventListener('DOMContentLoaded', function () {
-    setTimeout(function () { if (typeof poll === 'function') { poll(); } }, 60);
-  });
+  window.__KSK_DEMO__ = function (dev, path, params) {
+    var s = db[dev.url];
+    if (!s) { return null; }
+    return new Promise(function (resolve) {
+      setTimeout(function () {
+        if (path === '/api/state') { resolve(JSON.parse(JSON.stringify(s))); return; }
+        if (path === '/api/test') {
+          s.busy = 1;
+          setTimeout(function () { s.busy = 0; }, 4000);
+          resolve({ ok: 1 }); return;
+        }
+        if (path === '/api/save' && params) {
+          if (params.engine) { s.engine = params.engine; }
+          if (params.voice) { s.voice = params.voice; }
+          if (params.key) { s.has_key = 1; }
+          if (params.ssid) { s.wifi = 1; s.ssid = params.ssid; s.ip = '192.168.1.90'; }
+          if (params.db_appid) { s.db_appid = params.db_appid; }
+          if (params.db_token) { s.has_token = 1; }
+          if (params.db_voice) { s.db_voice = params.db_voice; }
+          s.ready = (s.engine === 'doubao')
+            ? !!(s.db_appid && s.has_token)
+            : !!(s.has_key && s.ssid);
+          resolve({ ok: 1 }); return;
+        }
+        if (path === '/api/reset') { s.wifi = 0; s.ssid = ''; s.has_key = 0; s.ready = 0; resolve({ ok: 1 }); return; }
+        resolve({ ok: 1 });
+      }, 90);
+    });
+  };
 })();
 </script>
-</body></html>
+
+<script>
+(function () {
+'use strict';
+
+var $ = function (i) { return document.getElementById(i); };
+var LS = 'ksk.console.v1';
+var FRAMED = window.parent !== window;
+var VOICE_NAME = { stella: '海星 · 女声', tide: '暗潮 · 男声' };
+var ENG_NAME = { deepseek: 'DeepSeek', doubao: '豆包' };
+
+var S = {
+  list: [], cur: '',
+  st: {}, online: {}, fails: {}, busy: {},
+  mode: {}, frame: {}, hello: {}, wait: {}, pend: {}, seq: 0,
+  touchedEng: false, touchedVoice: false, engUI: 'deepseek', voiceUI: 'stella',
+  fastUntil: 0, timer: 0, connWatch: 0, resetArmed: 0, sentAt: 0,
+  tab: 'conn', localMode: false, othersAt: 0, demo: !!window.__KSK_DEMO__
+};
+
+/* ================= 基础工具 ================= */
+function toast(msg, kind, ms) {
+  var box = $('toast');
+  while (box.children.length >= 3) { box.removeChild(box.firstChild); }
+  var d = document.createElement('div');
+  d.className = 'toast' + (kind ? ' ' + kind : '');
+  d.textContent = msg;
+  d.addEventListener('click', function () { if (d.parentNode) { d.remove(); } });
+  box.appendChild(d);
+  setTimeout(function () { if (d.parentNode) { d.remove(); } }, ms || 2800);
+}
+function setSt(id, txt, cls) {
+  var e = $(id);
+  if (!e) { return; }
+  e.className = 'st ' + (cls || '');
+  e.textContent = txt;
+}
+function setText(id, txt) {
+  var e = $(id);
+  if (e) { e.textContent = txt; }
+}
+function hhmmss(t) {
+  var d = new Date(t), p = function (n) { return (n < 10 ? '0' : '') + n; };
+  return p(d.getHours()) + ':' + p(d.getMinutes()) + ':' + p(d.getSeconds());
+}
+function bytes(s) {
+  try { return new TextEncoder().encode(s).length; } catch (e) {
+    var n = 0;
+    for (var i = 0; i < s.length; i++) {
+      var c = s.charCodeAt(i);
+      if (c < 0x80) { n += 1; }
+      else if (c < 0x800) { n += 2; }
+      else if (c >= 0xD800 && c <= 0xDBFF) { n += 4; i++; }
+      else { n += 3; }
+    }
+    return n;
+  }
+}
+function setBusy(btn, on) {
+  btn.disabled = !!on;
+  btn.classList.toggle('busy', !!on);
+}
+function originOf(url) {
+  var a = document.createElement('a');
+  a.href = url;
+  return a.protocol + '//' + a.host;
+}
+function hostOf(url) {
+  var a = document.createElement('a');
+  a.href = url;
+  return a.host;
+}
+function normUrl(u) {
+  u = String(u || '').replace(/^\s+|\s+$/g, '');
+  if (!u) { return ''; }
+  if (!/^https?:\/\//i.test(u)) { u = 'http://' + u; }
+  return u.replace(/\/+$/, '');
+}
+
+/* ================= 分享链接（?dev= 地址 &name= 名称） ================= */
+var QP = (function () {
+  var o = { dev: [], name: '' };
+  try {
+    var q = new URLSearchParams(location.search || '');
+    o.dev = q.getAll('dev') || [];
+    o.name = q.get('name') || '';
+  } catch (e) {}
+  return o;
+})();
+function pageBase() {
+  if (location.protocol === 'file:') { return ''; }
+  return location.origin + location.pathname;
+}
+function shareUrl(dev) {
+  var base = pageBase();
+  if (!base || !dev) { return ''; }
+  return base + (base.indexOf('?') >= 0 ? '&' : '?') +
+    'dev=' + encodeURIComponent(dev.url) + '&name=' + encodeURIComponent(dev.name);
+}
+function renderShare() {
+  var dev = curDev();
+  var box = $('shareBox'), hint = $('shareHint');
+  if (!dev) {
+    box.className = 'share empty';
+    box.textContent = '先选择一台设备';
+    hint.textContent = '从上面的列表点一台设备，这里就会生成可发送的链接。';
+    return;
+  }
+  if (!pageBase()) {
+    box.className = 'share empty';
+    box.textContent = '当前是本地文件（file://）打开的，没有可分享的网址';
+    hint.textContent = '把这份 html 放到任意一台机器上用 http 托管（例如 python -m http.server 8080），再用 http://那台机器IP:8080/ 打开，就能生成可发送的链接。';
+    return;
+  }
+  box.className = 'share';
+  box.textContent = shareUrl(dev);
+  hint.textContent = '对方需与设备在同一局域网；链接里带了设备地址，打开即自动添加并选中。';
+}
+function legacyCopy(t) {
+  var ta = document.createElement('textarea');
+  ta.value = t;
+  ta.contentEditable = 'true';
+  ta.style.cssText = 'position:fixed;left:-9999px;top:0;opacity:0;font-size:16px';
+  document.body.appendChild(ta);
+  var ok = false;
+  try {
+    var range = document.createRange();
+    range.selectNodeContents(ta);
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    ta.setSelectionRange(0, 999999);
+    ok = document.execCommand('copy');
+  } catch (e) { ok = false; }
+  ta.remove();
+  return ok;
+}
+function selectShare() {
+  try {
+    var range = document.createRange();
+    range.selectNodeContents($('shareBox'));
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+  } catch (e) {}
+}
+/* 板子地址是 http（非安全上下文），clipboard API 不存在，所以同步方案优先 */
+function copyText(t) {
+  if (legacyCopy(t)) { return Promise.resolve(); }
+  var p = null;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      p = navigator.clipboard.writeText(t);
+    }
+  } catch (e) { p = null; }
+  if (p && typeof p.then === 'function') {
+    return p.catch(function () {
+      throw new Error('浏览器不允许自动复制，请长按链接手动复制');
+    });
+  }
+  return Promise.reject(new Error('浏览器不允许自动复制，请长按链接手动复制'));
+}
+
+/* ================= 设备存储 ================= */
+function persist() {
+  try {
+    localStorage.setItem(LS, JSON.stringify({ list: S.list, cur: S.cur }));
+  } catch (e) {}
+}
+function load() {
+  try {
+    var raw = localStorage.getItem(LS);
+    if (!raw) { return; }
+    var j = JSON.parse(raw);
+    if (j && j.list && j.list.length) {
+      S.list = j.list.filter(function (d) { return d && d.id && d.url; });
+      S.cur = j.cur || S.list[0].id;
+    }
+  } catch (e) {}
+}
+function curDev() {
+  for (var i = 0; i < S.list.length; i++) {
+    if (S.list[i].id === S.cur) { return S.list[i]; }
+  }
+  return S.list[0] || null;
+}
+function devById(id) {
+  for (var i = 0; i < S.list.length; i++) {
+    if (S.list[i].id === id) { return S.list[i]; }
+  }
+  return null;
+}
+function newId() {
+  return 'd' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
+}
+function addDevice(name, url, silent) {
+  url = normUrl(url);
+  if (!url) { return null; }
+  for (var i = 0; i < S.list.length; i++) {
+    if (S.list[i].url === url) {
+      if (!silent) { toast('这个地址已经在列表里了', 'err'); }
+      return S.list[i];
+    }
+  }
+  var d = { id: newId(), name: (name && name.trim()) || hostOf(url), url: url };
+  S.list.push(d);
+  persist();
+  return d;
+}
+function removeDevice(id) {
+  S.list = S.list.filter(function (d) { return d.id !== id; });
+  delete S.st[id]; delete S.online[id]; delete S.fails[id]; delete S.mode[id];
+  if (S.frame[id]) { try { S.frame[id].remove(); } catch (e) {} delete S.frame[id]; }
+  if (S.cur === id) { S.cur = S.list[0] ? S.list[0].id : ''; }
+  persist();
+  refreshAll();
+  if (!S.list.length) { renderBlank(); activate('dev'); return; }
+  if (S.st[S.cur]) { renderState(S.st[S.cur]); } else { renderBlank(); }
+  pollCurrent();
+}
+
+/* ================= 传输层：直连 / 中继 ================= */
+function api(dev, path, params) {
+  var body = null, method = 'GET';
+  if (params != null) {
+    method = 'POST';
+    var sp = new URLSearchParams();
+    for (var k in params) {
+      if (Object.prototype.hasOwnProperty.call(params, k) && params[k] !== undefined && params[k] !== null) {
+        sp.set(k, params[k]);
+      }
+    }
+    body = String(sp);
+  }
+  if (window.__KSK_DEMO__) {
+    var dr = window.__KSK_DEMO__(dev, path, params);
+    if (dr) { return dr; }
+  }
+  if (S.mode[dev.id] === 'relay') {
+    return viaRelay(dev, path, body, method);
+  }
+  if (S.mode[dev.id] === 'direct') {
+    return direct(dev, path, body, method);
+  }
+  if (originOf(dev.url) === location.origin) {
+    S.mode[dev.id] = 'direct';
+    return direct(dev, path, body, method);
+  }
+  if (location.protocol === 'https:' && dev.url.indexOf('http://') === 0) {
+    return Promise.reject(new Error('https 页面无法访问 http 设备，请改用本地文件或 http 打开'));
+  }
+  return direct(dev, path, body, method).then(function (j) {
+    S.mode[dev.id] = 'direct';
+    return j;
+  }).catch(function () {
+    S.mode[dev.id] = 'relay';
+    return viaRelay(dev, path, body, method);
+  });
+}
+function direct(dev, path, body, method) {
+  var opt = { cache: 'no-store', method: method || 'GET' };
+  if (method === 'POST') {
+    opt.headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+    opt.body = body || '';
+  }
+  return fetch(dev.url + path, opt).then(function (r) {
+    if (!r.ok) { throw new Error('HTTP ' + r.status); }
+    return r.json();
+  });
+}
+function ensureFrame(dev) {
+  if (S.hello[dev.id]) { return Promise.resolve(S.frame[dev.id]); }
+  if (S.wait[dev.id]) { return S.wait[dev.id].p; }
+  var p = new Promise(function (resolve, reject) {
+    var fr = S.frame[dev.id];
+    if (!fr) {
+      fr = document.createElement('iframe');
+      fr.style.cssText = 'position:fixed;left:-9999px;top:0;width:2px;height:2px;border:0;opacity:0';
+      fr.setAttribute('aria-hidden', 'true');
+      fr.setAttribute('tabindex', '-1');
+      fr.src = dev.url + '/';
+      document.body.appendChild(fr);
+      S.frame[dev.id] = fr;
+    }
+    var done = false;
+    var t = setTimeout(function () {
+      if (done) { return; }
+      done = true;
+      delete S.wait[dev.id];
+      reject(new Error('设备页面无响应（固件里的页面可能不是本版本）'));
+    }, 7000);
+    S.wait[dev.id] = {
+      resolve: function () {
+        if (done) { return; }
+        done = true;
+        clearTimeout(t);
+        delete S.wait[dev.id];
+        S.hello[dev.id] = 1;
+        resolve(S.frame[dev.id]);
+      }
+    };
+  });
+  S.wait[dev.id].p = p;
+  return p;
+}
+function viaRelay(dev, path, body, method) {
+  return ensureFrame(dev).then(function (fr) {
+    return new Promise(function (resolve, reject) {
+      var id = ++S.seq;
+      S.pend[id] = {
+        r: resolve, e: reject,
+        t: setTimeout(function () { delete S.pend[id]; reject(new Error('设备响应超时')); }, 9000)
+      };
+      try {
+        fr.contentWindow.postMessage({ ksk: 'req', id: id, path: path, body: body || '', method: method || 'GET' }, '*');
+      } catch (err) {
+        delete S.pend[id];
+        reject(err);
+      }
+    });
+  });
+}
+function onHello(source) {
+  for (var id in S.frame) {
+    if (S.frame[id] && S.frame[id].contentWindow === source) {
+      var w = S.wait[id];
+      if (w) { w.resolve(); }
+      return;
+    }
+  }
+}
+window.addEventListener('message', function (ev) {
+  var d = ev.data;
+  if (!d || typeof d !== 'object' || !d.ksk) { return; }
+  if (d.ksk === 'hello') { onHello(ev.source); return; }
+  if (d.ksk !== 'res') { return; }
+  var p = S.pend[d.id];
+  if (!p) { return; }
+  clearTimeout(p.t);
+  delete S.pend[d.id];
+  if (d.ok) { p.r(d.data); } else { p.e(new Error(d.err || '设备返回错误')); }
+});
+
+/* 被别的页面当成中继时，只放行 /api/* 的同源请求 */
+(function () {
+  if (!FRAMED) { return; }
+  window.addEventListener('message', function (ev) {
+    var d = ev.data;
+    if (!d || typeof d !== 'object' || d.ksk !== 'req' || !d.path) { return; }
+    var path = String(d.path);
+    if (path.indexOf('/api/') !== 0) { return; }
+    var opt = { cache: 'no-store', method: d.method === 'POST' ? 'POST' : 'GET' };
+    if (opt.method === 'POST') {
+      opt.headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+      opt.body = d.body || '';
+    }
+    fetch(path, opt).then(function (r) { return r.json(); })
+      .then(function (j) {
+        ev.source.postMessage({ ksk: 'res', id: d.id, ok: 1, data: j }, '*');
+      })
+      .catch(function () {
+        ev.source.postMessage({ ksk: 'res', id: d.id, ok: 0, err: '设备请求失败' }, '*');
+      });
+  });
+  function hello() {
+    try { parent.postMessage({ ksk: 'hello' }, '*'); } catch (e) {}
+  }
+  if (document.readyState === 'complete') { setTimeout(hello, 30); }
+  else { window.addEventListener('load', function () { setTimeout(hello, 30); }); }
+})();
+
+/* ================= 标签页 ================= */
+function activate(t) {
+  S.tab = t;
+  var tabs = document.querySelectorAll('.tab');
+  for (var i = 0; i < tabs.length; i++) {
+    var on = tabs[i].getAttribute('data-t') === t;
+    tabs[i].classList.toggle('on', on);
+    tabs[i].setAttribute('aria-selected', on ? 'true' : 'false');
+  }
+  var views = document.querySelectorAll('.view');
+  for (var j = 0; j < views.length; j++) { views[j].classList.remove('on'); }
+  var target = $('v' + t.charAt(0).toUpperCase() + t.slice(1));
+  if (target) { target.classList.add('on'); }
+  try { localStorage.setItem('ksk.tab', t); } catch (e) {}
+  if (t === 'dev') { renderDevList(); pollOthers(true); }
+}
+(function () {
+  var tabs = document.querySelectorAll('.tab');
+  for (var i = 0; i < tabs.length; i++) {
+    tabs[i].addEventListener('click', function () { activate(this.getAttribute('data-t')); });
+  }
+  var last = null;
+  try { last = localStorage.getItem('ksk.tab'); } catch (e) {}
+  if (last && $('v' + last.charAt(0).toUpperCase() + last.slice(1))) { activate(last); }
+})();
+$('devSwitch').addEventListener('click', function () { activate('dev'); });
+
+/* ================= 选项渲染 ================= */
+function paintEngine(e, touched) {
+  S.engUI = e;
+  if (touched) { S.touchedEng = true; }
+  var opts = document.querySelectorAll('.opt[data-e]');
+  for (var i = 0; i < opts.length; i++) {
+    var on = opts[i].getAttribute('data-e') === e;
+    opts[i].classList.toggle('on', on);
+    opts[i].setAttribute('aria-checked', on ? 'true' : 'false');
+  }
+  $('engDs').style.display = (e === 'deepseek') ? '' : 'none';
+  $('engDb').style.display = (e === 'doubao') ? '' : 'none';
+  dirty();
+}
+function paintVoice(v, touched) {
+  S.voiceUI = v;
+  if (touched) { S.touchedVoice = true; }
+  var opts = document.querySelectorAll('.opt[data-v]');
+  for (var i = 0; i < opts.length; i++) {
+    var on = opts[i].getAttribute('data-v') === v;
+    opts[i].classList.toggle('on', on);
+    opts[i].setAttribute('aria-checked', on ? 'true' : 'false');
+  }
+  $('voice').value = v;
+  dirty();
+}
+function dirty() {
+  var st = S.st[S.cur] || {};
+  $('engDirty').style.display = (st.engine && st.engine !== S.engUI) ? '' : 'none';
+  $('voiceDirty').style.display = (st.voice && st.voice !== S.voiceUI) ? '' : 'none';
+}
+(function () {
+  var eo = document.querySelectorAll('.opt[data-e]');
+  for (var i = 0; i < eo.length; i++) {
+    eo[i].addEventListener('click', function () { paintEngine(this.getAttribute('data-e'), true); });
+  }
+  var vo = document.querySelectorAll('.opt[data-v]');
+  for (var j = 0; j < vo.length; j++) {
+    vo[j].addEventListener('click', function () { paintVoice(this.getAttribute('data-v'), true); });
+  }
+})();
+
+/* ================= 状态渲染 ================= */
+function setBanner(on, txt) {
+  $('banner').classList.toggle('on', !!on);
+  if (txt) { setText('bannerTxt', txt); }
+}
+function setStale(on) {
+  $('metricsBox').classList.toggle('stale', !!on);
+  var k = document.querySelector('.kv');
+  if (k) { k.classList.toggle('stale', !!on); }
+  if (on) { setText('upd', '—'); }
+}
+function renderHeader(dev, st) {
+  setText('curName', dev ? (dev.name + ' · ' + hostOf(dev.url)) : '未选择设备');
+  if (!dev) {
+    setSt('bLink', '未选择设备', '');
+    setSt('bWifi', 'Wi-Fi 未知', '');
+    setSt('bBle', 'BLE 未知', '');
+    setSt('bEng', '引擎 未知', '');
+    return;
+  }
+  var en = (st && st.engine) || 'deepseek';
+  var enName = ENG_NAME[en] || en;
+  if (!st) {
+    setSt('bLink', '读取中…', '');
+    setSt('bWifi', 'Wi-Fi 未知', '');
+    setSt('bBle', 'BLE 未知', '');
+    setSt('bEng', '引擎 未知', '');
+    return;
+  }
+  setSt('bLink', st.wifi ? '设备在线' : '已连接 · 未联网', st.wifi ? 'ok' : 'warn');
+  setSt('bWifi', st.wifi ? 'Wi-Fi 已连接' : 'Wi-Fi 未连接', st.wifi ? 'ok' : 'off');
+  setSt('bBle', st.ble ? 'BLE 已连接' : 'BLE 广播中', st.ble ? 'ble' : '');
+  setSt('bEng', enName + (st.ready ? ' 就绪' : ' 未配置'), st.ready ? 'info' : 'warn');
+}
+function renderState(st) {
+  var dev = curDev();
+  if (!dev) { return; }
+  setStale(false);
+  S.st[dev.id] = st;
+  S.online[dev.id] = true;
+  S.lastUpd = Date.now();
+  setText('upd', hhmmss(S.lastUpd));
+  renderHeader(dev, st);
+
+  var en = st.engine || 'deepseek';
+  var enName = ENG_NAME[en] || en;
+
+  setText('mWifi', st.wifi ? '已连接' : '未连接');
+  setText('mWifiS', st.wifi ? (st.ssid + ' · ' + st.ip) : '去 Wi-Fi 卡片配置');
+  setText('mEng', enName);
+  setText('mEngS', st.ready ? '凭据完整 · 就绪' : '缺少凭据');
+  var vLabel = (en === 'doubao') ? (st.db_voice || '未填 voice_type')
+                                 : (VOICE_NAME[st.voice] || st.voice || '—');
+  setText('mVoice', vLabel);
+  setText('mVoiceS', (en === 'doubao') ? '豆包 voice_type' : 'DeepSeek 发音人');
+  setText('mPlay', st.busy ? '正在播放' : '空闲');
+  setText('mPlayS', st.busy ? '合成或播放中' : '可以发送试听');
+
+  if (!S.connWatch) {
+    if (st.wifi) {
+      $('ipNote').className = 'note ok';
+      setText('ipNote', '已连接 ' + st.ssid + '，IP ' + st.ip);
+    } else {
+      $('ipNote').className = 'note';
+      setText('ipNote', '当前未连接，请填写下面的网络信息');
+    }
+  }
+  var ssidEl = $('ssid');
+  if (st.ssid && !ssidEl.value && document.activeElement !== ssidEl) { ssidEl.value = st.ssid; }
+
+  $('key').placeholder = st.has_key ? '已保存（留空表示不修改）' : 'sk-xxxxxxxxxxxxxxxx';
+  $('tagDs').className = 'tag ' + (st.has_key ? 'g' : 'a');
+  setText('tagDs', st.has_key ? '密钥已存' : '待填写');
+  setText('engNow', '当前设备使用：' + enName + (st.ready ? '（就绪）' : '（未就绪）'));
+  var fill = function (id, val) {
+    var el = $(id);
+    if (val && !el.value && document.activeElement !== el) { el.value = val; }
+  };
+  fill('db_appid', st.db_appid);
+  fill('db_cluster', st.db_cluster);
+  fill('db_voice', st.db_voice);
+  $('db_token').placeholder = st.has_token ? '已保存（留空表示不修改）' : '控制台里的 Access Token';
+  if (!S.touchedEng) { paintEngine(en, false); }
+  if (!S.touchedVoice && st.voice) { paintVoice(st.voice, false); }
+
+  $('playPulse').classList.toggle('on', !!st.busy);
+  if (st.busy) {
+    setText('playTxt', '正在播放，喇叭出声中…');
+  } else if (S.sentAt && Date.now() - S.sentAt < 12000) {
+    setText('playTxt', '已发送，等待合成…');
+  } else {
+    setText('playTxt', '空闲，可以发送试听');
+    S.sentAt = 0;
+  }
+
+  setText('kName', dev.name);
+  setText('kUrl', dev.url);
+  setText('kNet', st.wifi ? ('已连接 ' + st.ssid) : '未连接');
+  setText('kIp', st.wifi ? st.ip : '-');
+  setText('kble', st.ble ? '手机已连接' : '广播中');
+  setText('kEng', enName + (st.ready ? ' · 就绪' : ' · 缺凭据'));
+  setText('kVoice', (en === 'doubao') ? (st.db_voice || '-') : (st.voice || '-'));
+  setText('kPlay', st.busy ? '正在播放' : '空闲');
+
+  var h = $('testHint');
+  if (!st.wifi) {
+    h.className = 'hint';
+    setText('testHint', '设备还没联网，先去「连接」页连 Wi-Fi。');
+  } else if (!st.ready) {
+    h.className = 'hint';
+    setText('testHint', '引擎未就绪，先去「引擎」页填凭据。');
+  } else {
+    h.className = 'hint';
+    setText('testHint', '文本上限约 500 字节（约 160 个汉字），超出会被设备截断。');
+  }
+  markList();
+  renderBulk();
+}
+function renderBlank() {
+  var dev = curDev();
+  renderHeader(dev, null);
+  setStale(true);
+  setText('kName', dev ? dev.name : '—');
+  setText('kUrl', dev ? dev.url : '—');
+  ['mWifi', 'mEng', 'mVoice', 'mPlay'].forEach(function (id) { setText(id, '—'); });
+  ['mWifiS', 'mEngS', 'mVoiceS', 'mPlayS'].forEach(function (id) { setText(id, '等待数据'); });
+  setText('upd', '—');
+  markList();
+}
+
+/* ================= 设备列表 ================= */
+function icon(kind) {
+  var s = document.createElement('span');
+  if (kind === 'edit') {
+    s.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>';
+  } else {
+    s.innerHTML = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M5 7h14M9 7V5h6v2M7 7l1 12h8l1-12"/></svg>';
+  }
+  return s.firstChild;
+}
+function renderBulk() {
+  var n = S.list.length;
+  $('bulkWrap').style.display = (n > 1) ? '' : 'none';
+  setText('bulkCnt', n + ' 台');
+  if (n <= 1) { $('bulk').checked = false; }
+}
+function markList() {
+  var rows = document.querySelectorAll('#devList .dev');
+  for (var i = 0; i < rows.length; i++) {
+    var id = rows[i].getAttribute('data-id');
+    var dot = rows[i].querySelector('.dott');
+    if (dot) {
+      dot.className = 'dott' + (S.online[id] === true ? ' ok' : (S.online[id] === false ? ' no' : ''));
+    }
+    rows[i].classList.toggle('on', id === S.cur);
+    var cur = rows[i].querySelector('.tag.cur');
+    if (cur) { cur.style.display = (id === S.cur) ? '' : 'none'; }
+  }
+  setText('devCount', S.list.length + ' 台');
+  $('devEmpty').style.display = S.list.length ? 'none' : '';
+  $('btnAddLocal').style.display = (S.localMode && !hasLocal()) ? '' : 'none';
+}
+function hasLocal() {
+  for (var i = 0; i < S.list.length; i++) {
+    if (originOf(S.list[i].url) === location.origin) { return true; }
+  }
+  return false;
+}
+function renderDevList() {
+  var box = $('devList');
+  box.innerHTML = '';
+  S.list.forEach(function (d) {
+    var row = document.createElement('div');
+    row.className = 'dev' + (d.id === S.cur ? ' on' : '');
+    row.setAttribute('data-id', d.id);
+
+    var dot = document.createElement('span');
+    dot.className = 'dott' + (S.online[d.id] === true ? ' ok' : (S.online[d.id] === false ? ' no' : ''));
+    row.appendChild(dot);
+
+    var di = document.createElement('div');
+    di.className = 'di';
+    var dn = document.createElement('div');
+    dn.className = 'dn';
+    var nm = document.createElement('span');
+    nm.className = 'nm';
+    nm.textContent = d.name;
+    dn.appendChild(nm);
+    if (d.id === S.cur) {
+      var t = document.createElement('span');
+      t.className = 'tag b cur';
+      t.textContent = '当前';
+      dn.appendChild(t);
+    }
+    if (d.demo) {
+      var t2 = document.createElement('span');
+      t2.className = 'tag';
+      t2.textContent = '示例';
+      dn.appendChild(t2);
+    }
+    di.appendChild(dn);
+
+    var du = document.createElement('span');
+    du.className = 'du';
+    var a = document.createElement('a');
+    a.href = d.url;
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = d.url;
+    a.addEventListener('click', function (ev) { ev.stopPropagation(); });
+    du.appendChild(a);
+    di.appendChild(du);
+    row.appendChild(di);
+
+    var da = document.createElement('div');
+    da.className = 'da';
+    var be = document.createElement('button');
+    be.className = 'mini';
+    be.type = 'button';
+    be.title = '重命名';
+    be.setAttribute('aria-label', '重命名');
+    be.appendChild(icon('edit'));
+    be.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      startRename(d.id, dn);
+    });
+    da.appendChild(be);
+
+    var bd = document.createElement('button');
+    bd.className = 'mini del';
+    bd.type = 'button';
+    bd.title = '删除';
+    bd.setAttribute('aria-label', '删除');
+    bd.appendChild(icon('del'));
+    bd.addEventListener('click', function (ev) {
+      ev.stopPropagation();
+      if (bd.classList.contains('armed')) {
+        removeDevice(d.id);
+        toast('已删除「' + d.name + '」', 'ok');
+        return;
+      }
+      bd.classList.add('armed');
+      bd.title = '再点一次确认删除';
+      setTimeout(function () { bd.classList.remove('armed'); bd.title = '删除'; }, 3000);
+    });
+    da.appendChild(bd);
+    row.appendChild(da);
+
+    row.addEventListener('click', function () { switchTo(d.id); });
+    box.appendChild(row);
+  });
+  markList();
+}
+function startRename(id, dn) {
+  var d = devById(id);
+  if (!d || dn.querySelector('input')) { return; }
+  var old = d.name;
+  dn.innerHTML = '';
+  var inp = document.createElement('input');
+  inp.className = 'ren';
+  inp.type = 'text';
+  inp.maxLength = 24;
+  inp.value = old;
+  dn.appendChild(inp);
+  inp.focus();
+  inp.select();
+  var done = false;
+  var finish = function (save) {
+    if (done) { return; }
+    done = true;
+    var v = inp.value.trim();
+    if (save && v) { d.name = v; persist(); }
+    refreshAll();
+  };
+  inp.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') { finish(true); }
+    else if (ev.key === 'Escape') { finish(false); }
+  });
+  inp.addEventListener('blur', function () { finish(true); });
+  inp.addEventListener('click', function (ev) { ev.stopPropagation(); });
+}
+
+function switchTo(id) {
+  if (id === S.cur) { renderDevList(); return; }
+  S.cur = id;
+  persist();
+  S.touchedEng = false;
+  S.touchedVoice = false;
+  S.sentAt = 0;
+  S.resetArmed = 0;
+  $('btnReset').classList.remove('armed');
+  $('btnReset').textContent = '清空当前设备配置';
+  clearInterval(S.connWatch);
+  S.connWatch = 0;
+  $('key').value = '';
+  $('db_token').value = '';
+  $('ssid').value = '';
+  $('pass').value = '';
+  $('db_appid').value = '';
+  $('db_cluster').value = '';
+  $('db_voice').value = '';
+  setBanner(false);
+  var dev = curDev();
+  var cached = S.st[id];
+  refreshAll();
+  if (cached) { renderState(cached); } else { renderBlank(); }
+  toast('已切换到「' + (dev ? dev.name : '') + '」', 'ok', 1600);
+  pollCurrent();
+}
+
+function refreshAll() {
+  renderDevList();
+  var dev = curDev();
+  setText('curName', dev ? (dev.name + ' · ' + hostOf(dev.url)) : '未选择设备');
+  renderBulk();
+  renderShare();
+  if (!dev) { renderHeader(null, null); }
+}
+
+/* ================= 轮询 ================= */
+function pollOne(dev) {
+  if (S.busy[dev.id]) { return; }
+  S.busy[dev.id] = 1;
+  api(dev, '/api/state', null).then(function (st) {
+    delete S.busy[dev.id];
+    S.fails[dev.id] = 0;
+    S.online[dev.id] = true;
+    if (st && typeof st.wifi !== 'undefined') {
+      if (dev.id === S.cur) {
+        setBanner(false);
+        renderState(st);
+      } else {
+        S.st[dev.id] = st;
+        if (S.tab === 'dev') { markList(); }
+      }
+    } else {
+      S.online[dev.id] = false;
+      if (S.tab === 'dev') { markList(); }
+    }
+  }).catch(function (err) {
+    delete S.busy[dev.id];
+    S.fails[dev.id] = (S.fails[dev.id] || 0) + 1;
+    S.online[dev.id] = false;
+    if (dev.id === S.cur) {
+      setStale(true);
+      setSt('bLink', '设备离线', 'off');
+      var tip = (err && err.message) ? err.message
+        : ('连不上「' + dev.name + '」，确认同一网络、地址正确。');
+      setBanner(true, tip + (S.fails[dev.id] > 2 ? '' : '（重试中…）'));
+    }
+    if (S.tab === 'dev') { markList(); }
+  });
+}
+function pollCurrent() {
+  var dev = curDev();
+  if (dev) { pollOne(dev); }
+}
+function pollOthers(force) {
+  if (!force && Date.now() - S.othersAt < 12000) { return; }
+  S.othersAt = Date.now();
+  S.list.forEach(function (d) {
+    if (d.id !== S.cur) { pollOne(d); }
+  });
+}
+function tick() {
+  clearTimeout(S.timer);
+  if (!document.hidden) {
+    pollCurrent();
+    if (S.tab === 'dev') { pollOthers(); }
+  }
+  var d = (Date.now() < S.fastUntil) ? 900 : 3000;
+  S.timer = setTimeout(tick, d);
+}
+document.addEventListener('visibilitychange', function () {
+  if (!document.hidden) { pollCurrent(); }
+});
+
+/* ================= 操作 ================= */
+function watchConnect(dev, target) {
+  clearInterval(S.connWatch);
+  var t0 = Date.now();
+  S.fastUntil = t0 + 22000;
+  $('ipNote').className = 'note';
+  setText('ipNote', '正在连接 ' + target + '，最多等 20 秒…');
+  S.connWatch = setInterval(function () {
+    var st = S.st[dev.id] || {};
+    if (st.wifi && st.ssid === target) {
+      clearInterval(S.connWatch); S.connWatch = 0;
+      toast('已连接，IP ' + st.ip, 'ok', 3200);
+      $('ipNote').className = 'note ok';
+      setText('ipNote', '已连接 ' + target + '，IP ' + st.ip);
+      return;
+    }
+    if (Date.now() - t0 > 20000) {
+      clearInterval(S.connWatch); S.connWatch = 0;
+      toast('连接超时：检查密码、2.4GHz、SSID 是否隐藏', 'err', 4200);
+      $('ipNote').className = 'note warn';
+      setText('ipNote', '连接超时。确认密码正确、路由器是 2.4GHz、SSID 没有隐藏。');
+    }
+  }, 1000);
+}
+
+$('btnConn').addEventListener('click', function () {
+  var btn = this, dev = curDev();
+  if (!dev) { toast('先添加一台设备', 'err'); return; }
+  var ssid = $('ssid').value.replace(/^\s+|\s+$/g, '');
+  var pass = $('pass').value;
+  if (!ssid) { toast('请先填写 Wi-Fi 名称', 'err'); $('ssid').focus(); return; }
+  if (pass && pass.length < 8) { toast('密码少于 8 位，WPA2 一般会失败', 'err', 3200); }
+  setBusy(btn, true);
+  api(dev, '/api/save', { ssid: ssid, pass: pass }).then(function (j) {
+    setBusy(btn, false);
+    if (!j.ok) { toast(j.err || '保存失败', 'err'); return; }
+    toast('已保存，正在连接 ' + ssid + '…', 'ok');
+    watchConnect(dev, ssid);
+  }).catch(function (e) {
+    setBusy(btn, false);
+    toast(e.message || '请求失败', 'err', 4000);
+  });
+});
+
+$('eye').addEventListener('click', function () {
+  var p = $('pass');
+  var show = p.type === 'password';
+  p.type = show ? 'text' : 'password';
+  this.classList.toggle('on', show);
+  this.setAttribute('aria-label', show ? '隐藏密码' : '显示密码');
+  this.setAttribute('aria-pressed', show ? 'true' : 'false');
+});
+
+$('btnEng').addEventListener('click', function () {
+  var btn = this, dev = curDev();
+  if (!dev) { toast('先添加一台设备', 'err'); return; }
+  var e = S.engUI || 'deepseek';
+  var payload = { engine: e };
+  if (e === 'deepseek') {
+    var key = $('key').value.replace(/^\s+|\s+$/g, '');
+    payload.key = key;
+    if (key && key.indexOf('sk-') !== 0) {
+      toast('DeepSeek 的 Key 一般以 sk- 开头，请确认没粘错', 'err', 3600);
+    }
+  } else {
+    payload.db_appid = $('db_appid').value.replace(/^\s+|\s+$/g, '');
+    payload.db_token = $('db_token').value.replace(/^\s+|\s+$/g, '');
+    payload.db_cluster = $('db_cluster').value.replace(/^\s+|\s+$/g, '');
+    payload.db_voice = $('db_voice').value.replace(/^\s+|\s+$/g, '');
+  }
+  setBusy(btn, true);
+  api(dev, '/api/save', payload).then(function (j) {
+    setBusy(btn, false);
+    if (!j.ok) { toast(j.err || '保存失败', 'err'); return; }
+    toast('引擎配置已保存', 'ok');
+    S.touchedEng = false;
+    if (e === 'deepseek') { $('key').value = ''; } else { $('db_token').value = ''; }
+    pollCurrent();
+  }).catch(function (err) {
+    setBusy(btn, false);
+    toast(err.message || '请求失败', 'err', 4000);
+  });
+});
+
+function saveVoice(dev) {
+  return api(dev, '/api/save', { voice: S.voiceUI }).then(function (j) {
+    if (j.ok) { S.touchedVoice = false; }
+    return j;
+  });
+}
+$('btnVoice').addEventListener('click', function () {
+  var btn = this, dev = curDev();
+  if (!dev) { toast('先添加一台设备', 'err'); return; }
+  setBusy(btn, true);
+  saveVoice(dev).then(function (j) {
+    setBusy(btn, false);
+    toast(j.ok ? ('音色已保存：' + (VOICE_NAME[S.voiceUI] || S.voiceUI)) : (j.err || '保存失败'), j.ok ? 'ok' : 'err');
+    pollCurrent();
+  }).catch(function (e) {
+    setBusy(btn, false);
+    toast(e.message || '请求失败', 'err', 4000);
+  });
+});
+$('btnVoicePlay').addEventListener('click', function () {
+  var btn = this, dev = curDev();
+  if (!dev) { toast('先添加一台设备', 'err'); return; }
+  var sample = (S.voiceUI === 'tide')
+    ? '你好，我是暗潮，男声，现在为你念一段测试。'
+    : '你好，我是海星，女声，现在为你念一段测试。';
+  setBusy(btn, true);
+  saveVoice(dev).then(function (j) {
+    if (!j.ok) { setBusy(btn, false); toast(j.err || '保存失败', 'err'); return; }
+    return api(dev, '/api/test', { text: sample }).then(function (r) {
+      setBusy(btn, false);
+      if (!r.ok) { toast(r.err || '播放失败', 'err'); return; }
+      S.sentAt = Date.now();
+      S.fastUntil = Date.now() + 12000;
+      toast('已发送试听，留意喇叭', 'ok');
+      pollCurrent();
+    });
+  }).catch(function (e) {
+    setBusy(btn, false);
+    toast(e.message || '请求失败', 'err', 4000);
+  });
+});
+
+function updCount() {
+  var t = $('text').value;
+  var cb = bytes(t);
+  var n = t.replace(/\s/g, '').length;
+  setText('cntText', n + ' 字');
+  setText('cntByte', cb + ' / 500 字节');
+  $('counter').className = 'counter' + (cb > 500 ? ' over' : '');
+}
+$('text').addEventListener('input', updCount);
+(function () {
+  var ps = document.querySelectorAll('.preset');
+  for (var i = 0; i < ps.length; i++) {
+    ps[i].addEventListener('click', function () {
+      $('text').value = this.getAttribute('data-p');
+      updCount();
+      $('text').focus();
+    });
+  }
+})();
+
+$('btnTest').addEventListener('click', function () {
+  var btn = this, dev = curDev();
+  if (!dev) { toast('先添加一台设备', 'err'); return; }
+  var text = $('text').value;
+  if (!text.replace(/\s/g, '')) { toast('先写点要念的内容', 'err'); $('text').focus(); return; }
+  var cb = bytes(text);
+  if (cb > 500) {
+    toast('文本 ' + cb + ' 字节，超过设备 512 字节缓冲，请缩短', 'err', 4200);
+    return;
+  }
+  if ($('bulk').checked && S.list.length > 1) {
+    var targets = S.list.filter(function (d) { return S.online[d.id] !== false; });
+    if (!targets.length) { toast('没有可用的设备', 'err'); return; }
+    setBusy(btn, true);
+    var ok = 0, bad = 0, left = targets.length;
+    targets.forEach(function (d) {
+      api(d, '/api/test', { text: text }).then(function (j) {
+        if (j.ok) { ok++; } else { bad++; }
+      }).catch(function () { bad++; }).then(function () {
+        left--;
+        if (left === 0) {
+          setBusy(btn, false);
+          toast('已发送：成功 ' + ok + ' 台' + (bad ? ('，失败 ' + bad + ' 台') : ''), bad ? 'err' : 'ok', 4000);
+          S.fastUntil = Date.now() + 6000;
+          pollCurrent();
+        }
+      });
+    });
+    return;
+  }
+  setBusy(btn, true);
+  api(dev, '/api/test', { text: text }).then(function (j) {
+    setBusy(btn, false);
+    if (!j.ok) { toast(j.err || '发送失败', 'err'); return; }
+    S.sentAt = Date.now();
+    S.fastUntil = Date.now() + 12000;
+    toast('已发送，留意喇叭', 'ok');
+    pollCurrent();
+  }).catch(function (e) {
+    setBusy(btn, false);
+    toast(e.message || '请求失败', 'err', 4000);
+  });
+});
+
+$('btnReset').addEventListener('click', function () {
+  var btn = this, dev = curDev();
+  if (!dev) { toast('先添加一台设备', 'err'); return; }
+  if (!S.resetArmed) {
+    S.resetArmed = Date.now();
+    btn.classList.add('armed');
+    btn.textContent = '再点一次确认清空「' + dev.name + '」';
+    setTimeout(function () {
+      if (S.resetArmed) {
+        S.resetArmed = 0;
+        btn.classList.remove('armed');
+        btn.textContent = '清空当前设备配置';
+      }
+    }, 5000);
+    return;
+  }
+  S.resetArmed = 0;
+  btn.classList.remove('armed');
+  btn.textContent = '清空中…';
+  btn.disabled = true;
+  api(dev, '/api/reset', {}).then(function () {
+    toast('已清空，设备重启中…', 'ok', 4000);
+    setBanner(true, '「' + dev.name + '」正在重启，约 10 秒后重新可达。');
+  }).catch(function (e) {
+    toast(e.message || '请求失败', 'err', 4000);
+  }).then(function () {
+    btn.disabled = false;
+    btn.textContent = '清空当前设备配置';
+  });
+});
+
+/* ================= 添加 / 本机 ================= */
+$('btnAddDev').addEventListener('click', function () {
+  var url = normUrl($('fUrl').value);
+  if (!url) { toast('请填写设备地址', 'err'); $('fUrl').focus(); return; }
+  var d = addDevice($('fName').value, url);
+  if (!d) { return; }
+  $('fName').value = '';
+  $('fUrl').value = '';
+  S.cur = d.id;
+  persist();
+  refreshAll();
+  switchTo(d.id);
+  activate('conn');
+  toast('已添加「' + d.name + '」', 'ok');
+});
+$('btnAddLocal').addEventListener('click', function () {
+  var d = addDevice('本机', location.origin, true);
+  if (!d) { return; }
+  S.cur = d.id;
+  persist();
+  refreshAll();
+  switchTo(d.id);
+  activate('conn');
+});
+
+$('btnCopy').addEventListener('click', function () {
+  var t = shareUrl(curDev());
+  if (!t) { toast('当前没有可分享的链接', 'err', 3200); return; }
+  copyText(t).then(function () {
+    toast('链接已复制，发给同一局域网的电脑即可', 'ok', 3200);
+  }).catch(function (e) {
+    selectShare();
+    toast((e.message || '复制失败') + '（已帮你选中）', 'err', 4200);
+  });
+});
+
+/* ================= 启动 ================= */
+function ensureLocalDevice() {
+  S.localMode = true;
+  if (hasLocal()) { return; }
+  var d = addDevice('本机', location.origin, true);
+  if (d && !S.cur) { S.cur = d.id; persist(); }
+}
+function seedDemo() {
+  S.list = [
+    { id: 'demo1', name: '客厅喇叭', url: 'http://192.0.2.10', demo: 1 },
+    { id: 'demo2', name: '书房小盒', url: 'http://192.0.2.11', demo: 1 }
+  ];
+  S.cur = 'demo1';
+  persist();
+}
+/* 链接里带的 ?dev=… 自动登记，方便把网址发给别的电脑 */
+function applyLinkParams() {
+  var first = null;
+  for (var i = 0; i < QP.dev.length; i++) {
+    var u = normUrl(QP.dev[i]);
+    if (!u) { continue; }
+    var nm = (QP.dev.length === 1 && QP.name) ? QP.name : '';
+    var d = addDevice(nm, u, true);
+    if (d && !first) { first = d; }
+  }
+  if (first) { S.cur = first.id; persist(); }
+  return first;
+}
+function boot() {
+  if (FRAMED) { return; }   /* 中继模式：只回请求，不跑界面轮询 */
+  load();
+  updCount();
+  paintEngine('deepseek', false);
+  paintVoice('stella', false);
+  refreshAll();
+
+  /* 先看自己是不是被某台设备托管：是就把「本机」登记进来，优先级高于示例数据 */
+  var probe = Promise.resolve();
+  if (location.protocol !== 'file:') {
+    probe = fetch(location.origin + '/api/state', { cache: 'no-store' })
+      .then(function (r) { return r.json(); })
+      .then(function (j) { if (j && typeof j.wifi !== 'undefined') { ensureLocalDevice(); } })
+      .catch(function () {});
+  }
+  probe.then(function () {
+    var fromLink = applyLinkParams();   /* 链接优先：先登记链接带来的设备 */
+    var preview = (location.protocol === 'file:' ||
+      location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+    if (!S.list.length && window.__KSK_DEMO__ && preview) { seedDemo(); }
+    if (!S.cur && S.list.length) { S.cur = S.list[0].id; persist(); }
+    refreshAll();
+    var dev = curDev();
+    if (!dev) { activate('dev'); return; }
+    var cached = S.st[dev.id];
+    if (cached) { renderState(cached); } else { renderBlank(); }
+    if (fromLink) { toast('已从链接添加「' + fromLink.name + '」', 'ok', 2600); }
+    tick();
+  });
+}
+boot();
+})();
+</script>
+</body>
+</html>
