@@ -250,6 +250,23 @@ static int ble_gap_event_cb(struct ble_gap_event *event, void *arg)
         }
         return 0;
 
+    case BLE_GAP_EVENT_LINK_ESTAB:
+        /* ext adv 下连接成功的最终确认事件。实测 BLE_GAP_EVENT_CONNECT 可能
+           根本不投递，只有这个事件可靠，连接句柄必须在这里也接住。 */
+        if (event->link_estab.status == 0) {
+            s_conn_handle = event->link_estab.conn_handle;
+            ESP_LOGI(TAG, "链路建立完成 conn_handle=%d", s_conn_handle);
+        } else {
+            ESP_LOGW(TAG, "链路建立失败 status=%d", event->link_estab.status);
+        }
+        return 0;
+
+    case BLE_GAP_EVENT_ENC_CHANGE:
+        /* 走到这里说明对端在要求加密：把它打出来，否则只会表现为「连不上」 */
+        ESP_LOGW(TAG, "对端请求加密，status=%d（本工程不做配对，App 需关掉加密选项）",
+                 event->enc_change.status);
+        return 0;
+
     case BLE_GAP_EVENT_DISCONNECT:
         ESP_LOGI(TAG, "连接断开 reason=%d，重新广播", event->disconnect.reason);
         s_conn_handle = BLE_HS_CONN_HANDLE_NONE;
@@ -258,6 +275,12 @@ static int ble_gap_event_cb(struct ble_gap_event *event, void *arg)
         return 0;
 
     case BLE_GAP_EVENT_SUBSCRIBE:
+        /* 订阅事件的 conn_handle 是最后一次可靠的来源：只要客户端能订阅，
+           就说明连接确实存在，句柄必须在这里兜底补上，否则 Notify 会因为
+           「当前无连接」被静默丢掉。 */
+        if (event->subscribe.conn_handle != BLE_HS_CONN_HANDLE_NONE) {
+            s_conn_handle = event->subscribe.conn_handle;
+        }
         if (event->subscribe.attr_handle == s_notify_val_handle) {
             s_notify_enabled = (event->subscribe.cur_notify != 0);
             ESP_LOGI(TAG, "Notify 订阅：%s", s_notify_enabled ? "已开启" : "已关闭");
@@ -284,6 +307,18 @@ static int ble_gap_event_cb(struct ble_gap_event *event, void *arg)
 /* ------------------------------------------------------------------ */
 esp_err_t ble_bridge_init(void)
 {
+    /* 显式关闭配对/加密。
+       本工程的数据没有保密需求，但如果 Android 端还残留着绑定信息（状态栏显示
+       Bonded），重连时会主动发起加密。设备端一旦进入 SMP 协商而没有配套的
+       io_cap/bonding 配置，协商就停在半路，手机侧表现为「连接超时」，而设备
+       侧日志里能看到的却只有一句「手机已连接」——于是再也走不到服务发现。 */
+    ble_hs_cfg.sm_io_cap         = BLE_HS_IO_NO_INPUT_OUTPUT;
+    ble_hs_cfg.sm_bonding        = 0;
+    ble_hs_cfg.sm_mitm           = 0;
+    ble_hs_cfg.sm_sc             = 0;
+    ble_hs_cfg.sm_our_key_dist   = 0;
+    ble_hs_cfg.sm_their_key_dist = 0;
+
     /* 主动请求较大 MTU：手机发长中文时不必拆成很多 20 字节的小包 */
     int rc = ble_att_set_preferred_mtu(PREFERRED_MTU);
     if (rc != 0) {
@@ -346,7 +381,7 @@ void ble_bridge_notify(const char *text)
     }
 
     if (s_conn_handle == BLE_HS_CONN_HANDLE_NONE) {
-        ESP_LOGD(TAG, "当前无连接，跳过 Notify");
+        ESP_LOGW(TAG, "当前无连接，丢弃 Notify \"%s\"", text);
         return;
     }
     if (!s_notify_enabled) {
