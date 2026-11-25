@@ -69,8 +69,15 @@ void app_main(void)
              MIC_I2C_SCL_GPIO, MIC_I2C_SDA_GPIO, MIC_I2S_MCLK_GPIO,
              MIC_I2S_BCLK_GPIO, MIC_I2S_WS_GPIO, MIC_I2S_DIN_GPIO);
 
-    /* 2. 麦克风 I2S */
-    ESP_ERROR_CHECK(mic_i2s_init());
+    /* 2. 板载 ES8311 麦克风。
+       故意不用 ESP_ERROR_CHECK：麦克风起不来时如果直接 panic，板子会进
+       复位循环，手机连都连不上，反而什么都诊断不了。这里降级继续跑，
+       BLE 仍可用 PING 自检，日志里也会写清是哪一步失败。 */
+    esp_err_t mic_err = mic_i2s_init();
+    if (mic_err != ESP_OK) {
+        ESP_LOGE(TAG, "麦克风初始化失败(%s)：识别功能不可用，BLE 仍正常",
+                 esp_err_to_name(mic_err));
+    }
 
     /* 3. 识别（内部创建 asr 任务，并把 NVS 里的模板读回内存） */
     ESP_ERROR_CHECK(asr_init());

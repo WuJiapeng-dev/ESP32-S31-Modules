@@ -51,6 +51,17 @@ esp_err_t mic_i2s_init(void)
         return err;
     }
 
+    /* 先探一下 ES8311 在不在总线上。这一步能把「芯片没焊/线接错」和
+       「寄存器配置错」彻底分开——否则两种情况的表现都是安静地没声音。 */
+    err = i2c_master_probe(s_i2c_bus, ES8311_CODEC_DEFAULT_ADDR >> 1, 200);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "I2C 0x%02X 无应答：ES8311 不在总线上（板载麦未焊/坏，或 SCL=GPIO%d "
+                      "SDA=GPIO%d 接错）。其余功能仍可运行，BLE 可用 PING 自检。",
+                 ES8311_CODEC_DEFAULT_ADDR >> 1, MIC_I2C_SCL_GPIO, MIC_I2C_SDA_GPIO);
+        return ESP_ERR_NOT_FOUND;
+    }
+    ESP_LOGI(TAG, "I2C 探测到 ES8311 (7bit addr=0x%02X)", ES8311_CODEC_DEFAULT_ADDR >> 1);
+
     /* ---------- 2) I2S RX：只收不发，MCLK 必须给 ---------- */
     i2s_chan_config_t chan_cfg = I2S_CHANNEL_DEFAULT_CONFIG(I2S_NUM_0, I2S_ROLE_MASTER);
     chan_cfg.dma_desc_num  = 6;
