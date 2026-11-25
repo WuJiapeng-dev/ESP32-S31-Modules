@@ -3,7 +3,8 @@
 把 ESP32-S31 语音合成控制台的**前端页面**发布成公网可访问的网站：单一网址，
 浏览器打开即用，不需要任何本地文件或服务。
 
-- 线上入口：见对话汇报中给出的分享链接（部署平台临时域名）
+- 线上入口（免费、固定）：**https://wujiapeng-dev.github.io/ESP32-S31-Modules/**
+- 备用入口（平台临时域名，带分享码）：`https://voice-console-26973.app.workbuddy.host/?sharecode=F7FSENPNAQ`
 - 目标域名：`yueyueniao.com`（尚未注册，注册与绑定步骤见对话汇报）
 
 ## 结构
@@ -11,21 +12,27 @@
 ```
 tools/console-web/
 ├── build_demo.py      # 从仓库根目录 控制台.html 生成 site/index.html
+├── deploy_pages.py    # 构建 + 推 gh-pages，GitHub Pages 自动重建
 ├── site/              # 发布目录（只放可公开的静态文件）
 │   └── index.html     # 由 build_demo.py 生成，勿手改
 └── README.md
 ```
 
-发布目录与构建脚本刻意分开：部署平台会把整个目录原样上传，脚本不该出现在公网。
+发布目录与构建脚本刻意分开：托管平台会把整个目录原样上传，脚本不该出现在公网。
 
 ## 生成与发布
 
 ```bash
-# 在仓库根目录执行；若 控制台.html 有改动，重跑即可同步到这里
-python tools/console-web/build_demo.py
-
-# 发布（WorkBuddy 内置发布能力，目录 = site/）
+# 一条命令：重新生成 + 推到 gh-pages 分支（Pages 来源即该分支）
+python tools/console-web/deploy_pages.py
 ```
+
+只改页面不发布时，单跑 `python tools/console-web/build_demo.py` 即可（输出 `site/index.html`）。
+
+**为什么不走 GitHub Actions**：仓库当前 git 凭据是 OAuth App，没有 `workflow` 权限，
+推不了 `.github/workflows/` 下的文件；改用直接推 `gh-pages` 分支，效果相同且零密钥。
+若要换成 Actions，在 GitHub 网页端 Settings → Pages 把 Source 改成 `GitHub Actions`，
+再自行推送一个 `deploy-pages` 工作流即可。
 
 `build_demo.py` 对源页面的改动只有两类，功能逻辑一行未动：
 
