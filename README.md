@@ -14,8 +14,14 @@ ESP32-S31 系列功能模块的**多模块汇总仓库**。一个模块一个目
 |---|---|---|---|---|---|
 | 01 | [`串口/`](串口/) | 串口/BLE 桥 | BLE 收 `ON`/`OFF` → UART0 转发 → STM32 控 LED，Notify 回执 | UART0 (GPIO58/59) + NimBLE | 已烧录验证（CH343/COM8，2026-11-23） |
 | 02 | [`喇叭/`](喇叭/) | SYN6288 语音合成 | BLE 收任意 UTF-8 文本 → 转 GB2312 → UART1 下发 SYN6288 播报，BY 忙信号回执 | UART1 (GPIO9/8) + BY (GPIO12) + NimBLE | 已烧录验证（COM8，2026-11-23），待实物验证播报 |
+| 02a | [`喇叭/复述/`](喇叭/复述/) | 语音复述 | INMP441 → 离线自学习识别（MFCC+DTW）→ BLE Notify + SYN6288 念出识别结果 | I2S (GPIO19/46/13) + UART1 (GPIO9/8) + BY (GPIO12) + NimBLE | 编译通过（0 error / 0 warning，0.89MB，分区余 78%），已烧录，待实物验证 |
+| 02b | [`喇叭/手机接收/`](喇叭/手机接收/) | 识别送手机 | INMP441 → 离线自学习识别 → **只经 BLE Notify 推文字给手机**，不接喇叭（无 UART/TTS） | I2S (GPIO19/46/13) + NimBLE | 编译通过（0 error / 0 warning），待实机验证 |
 | 03 | [`音色/`](音色/) | 云端语音合成 | BLE 收文本 → HTTPS 调 **DeepSeek TTS** 拿裸 PCM → I2S/PDM 推功放；网页配 Key、选引擎与音色 | I2S (GPIO15/16/17) 或 PDM (GPIO17) + Wi-Fi + NimBLE | 编译通过（0 error / 0 warning，1.72MB，分区余 59%），网页见 [`控制台.html`](控制台.html)，待实机验证 |
-| 04 | [`麦克风/`](麦克风/) | 语音复述 | INMP441 采集 → **离线自学习识别**（MFCC + DTW 模板匹配）→ BLE Notify 显示 + SYN6288 播报 | I2S (GPIO19/46/13) + UART1 (GPIO9/8) + BY (GPIO12) + NimBLE | 编译通过（0 error / 0 warning，0.89MB，分区余 78%），待实机验证 |
+
+> `喇叭/` 下现在是**三个互相独立的 ESP-IDF 工程**：根目录（SYN6288 离线合成）、
+> `复述/`（麦克风识别 + 喇叭念出来）、`手机接收/`（麦克风识别 → 手机显示，不接喇叭）。
+> 每层都有自己的 `CMakeLists.txt` / `sdkconfig.defaults` / `main/`，可单独编译烧录，
+> 互不依赖。同一块板子同一时间只能跑一个。
 
 > **模块 03 的目录名有个硬限制**：ESP-IDF 的工具链处理不了非 ASCII 路径，
 > 在 `音色/` 这种中文目录下 `build` 会失败（gcc 报 `cannot read spec file`，
@@ -24,18 +30,19 @@ ESP32-S31 系列功能模块的**多模块汇总仓库**。一个模块一个目
 > 目录名用中文，GitHub 网页上的链接会自动转成 `%E4%B8%B2%E5%8F%A3` 这类 percent-encoded
 > 形式，属正常现象，点进去照常能打开。`git clone` 到本地后目录名就是中文。
 
-四个模块**共用同一套 BLE 身份**：广播名 `kskbl zdjd`，服务/特征 UUID
+五个工程**共用同一套 BLE 身份**：广播名 `kskbl zdjd`，服务/特征 UUID
 `6a400001/0002/0003-b5a3-f393-e0a9-e50e24dcca9e`。手机调试助手的配置可以原样复用，
-刷哪个模块就连哪个（同一时间只能跑一个）。
+刷哪个工程就连哪个（同一时间只能跑一个）。
 
 `喇叭` 与 `音色` 是同一件事的两条路：SYN6288 音色固定（芯片只固化一个发音人，
 音频模拟直出、ESP32 拿不到数字流），要换音色只能走云端 TTS，于是另开一个模块，
 原模块保留作离线兜底。两者引脚不冲突，可以同时接线，但固件只能刷一个。
 
-**`麦克风` 的识别能力要看清**：它是"自学习模板匹配"，只能认出你用 `EN:` 教过的
-句子（最多 8 条、单句 2 秒），**不是通用中文听写**。原因是芯片没有 esp-sr 的
-预编译库、whisper/vosk 那类模型又远超 RAM，详细依据见 `麦克风/README.md` §1。
-要认任意中文得走云端 ASR（该模块已预留接入点）。
+**识别能力要看清（`喇叭/复述` 与 `喇叭/手机接收` 用的是同一个内核）**：
+它是"自学习模板匹配"，只能认出你用 `EN:` 教过的句子（最多 8 条、单句 2 秒），
+**不是通用中文听写**。原因是芯片没有 esp-sr 的预编译库、whisper/vosk 那类模型
+又远超 RAM，详细依据见 `喇叭/手机接收/README.md` §1。
+要认任意中文得走云端 ASR（两个工程都在 `on_utterance_done()` 留了接入点）。
 
 后续模块在此表追加一行。
 
@@ -58,7 +65,15 @@ ESP32-S31-Modules/
 ├── 控制台.html             ← 对外展示：模块 03 的网页控制台预览（离线，数据是假的）
 ├── .gitignore             ← 仓库级忽略规则（覆盖所有模块）
 ├── 串口/                   ← 模块 01：BLE ↔ UART0 桥
-├── 喇叭/                   ← 模块 02：SYN6288 离线语音合成
+├── 喇叭/                   ← 模块 02：SYN6288 离线语音合成（根目录这一层就是一个独立工程）
+│   ├── CMakeLists.txt     ← 根工程的入口
+│   ├── main/              ← BLE 收文本 → GB2312 → SYN6288 播报
+│   ├── 复述/               ← 02a：INMP441 → 识别 → Notify + 喇叭念出来
+│   │   ├── CMakeLists.txt / sdkconfig.defaults / partitions.csv
+│   │   └── main/          ← mic_i2s / fft / mfcc / dtw / asr + syn6288 / gb2312 / tts
+│   └── 手机接收/           ← 02b：INMP441 → 识别 → **只发 BLE**，不接喇叭
+│       ├── CMakeLists.txt / sdkconfig.defaults / partitions.csv
+│       └── main/          ← mic_i2s / fft / mfcc / dtw / asr（无 uart / 无 tts / 无 gb2312）
 ├── 音色/                   ← 模块 03：云端 TTS（DeepSeek → I2S）
 │   ├── README.md          ← 模块说明：协议/接线/编译/验收/排查
 │   ├── CMakeLists.txt     ← ESP-IDF 工程入口（必须在这一层）
@@ -66,11 +81,6 @@ ESP32-S31-Modules/
 │   ├── tools/
 │   │   └── gen_preview.py ← 从 wifi_prov.c 抽出 PAGE_HTML，同时写根目录 控制台.html
 │   └── main/              ← 源码
-└── 麦克风/                 ← 模块 04：INMP441 → 离线识别 → Notify + SYN6288
-    ├── README.md          ← 含离线 ASR 可行性结论、命令表、排查顺序
-    ├── CMakeLists.txt
-    ├── partitions.csv     ← app 4MB / nvs 384KB（默认 1MB 装不下）
-    └── main/              ← 源码（mic_i2s / fft / mfcc / dtw / asr + 复用的 syn6288、gb2312、tts）
 ```
 
 约定：

@@ -1,0 +1,58 @@
+# ============================================================
+# ESP32-S31 + INMP441 + SYN6288 语音复述 / 默认配置
+# 说明：
+# 1) 目标芯片 esp32s31 由 idf.py --preview set-target 决定
+# 2) console 挪到 USB Serial/JTAG：UART0 空闲，业务串口是 UART1（GPIO9/8）
+# ============================================================
+
+# ---------- 控制台：UART0（GPIO58/59，就是板载 CH343 那两个脚）----------
+# 为什么改到 UART0 而不是 USB Serial/JTAG：
+#   板子上只有 CH343 一根线，console 放 USB-JTAG 时这根线上看不到任何应用日志
+#   （实测：只有 ROM 的 ESP-ROM 启动几行，之后 fs 静默）。
+#   本模块的 UART0 没有任何业务用途（SYN6288 在 UART1: GPIO8/9），
+#   所以把 UART0 拿来当控制台，烧录线和看日志可以是同一根线。
+# USB Serial/JTAG 保留为副通道，插原生 USB 口时两边都能看。
+CONFIG_ESP_CONSOLE_UART_CUSTOM=y
+CONFIG_ESP_CONSOLE_UART_CUSTOM_NUM_0=y
+CONFIG_ESP_CONSOLE_UART_TX_GPIO=58
+CONFIG_ESP_CONSOLE_UART_RX_GPIO=59
+CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
+CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y
+# CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG is not set
+# CONFIG_ESP_CONSOLE_SECONDARY_NONE is not set
+
+# 启动阶段 UART 噪声降到最低
+CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
+
+# ---------- 日志 ----------
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+
+# ---------- 蓝牙：只启用 NimBLE，外设 + 广播者角色 ----------
+CONFIG_BT_ENABLED=y
+CONFIG_BT_BLUEDROID_ENABLED=n
+CONFIG_BT_NIMBLE_ENABLED=y
+CONFIG_BT_NIMBLE_ROLE_PERIPHERAL=y
+CONFIG_BT_NIMBLE_ROLE_BROADCASTER=y
+CONFIG_BT_NIMBLE_ROLE_CENTRAL=n
+CONFIG_BT_NIMBLE_ROLE_OBSERVER=n
+CONFIG_BT_NIMBLE_GAP_SERVICE=y
+# 使用扩展广播 API + legacy_pdu（对老手机兼容性最好）
+CONFIG_BT_NIMBLE_EXT_ADV=y
+CONFIG_BT_NIMBLE_MAX_CONNECTIONS=2
+
+# ---------- Flash ----------
+# 板载 16MB（来源：开发环境说明 §4 flash_project_args 的 --flash-size 16MB）
+CONFIG_ESPTOOLPY_FLASHSIZE_16MB=y
+
+# ---------- 分区表 ----------
+# 必须显式打开，否则 IDF 用内置 single-app（app 只有 1MB），
+# 本工程实测 0xe2ce0（约 907KB）只剩 11%，模板再多一点就溢出了。
+CONFIG_PARTITION_TABLE_CUSTOM=y
+CONFIG_PARTITION_TABLE_CUSTOM_FILENAME="partitions.csv"
+
+# ---------- 性能 ----------
+# 注意：这里**不**开全局 CONFIG_COMPILER_OPTIMIZATION_PERF。
+# 全局 -O2 会让 mbedtls 的 ssl_tls.c 之类的大文件在编译时吃掉 1GB 以上内存，
+# 本机 8GB 内存 + 安全软件常驻时会直接把编译挂死（实测两次卡在同一文件）。
+# 只需要给本工程的 DSP 源码（fft/mfcc/dtw/asr）单独开 -O2，
+# 见 main/CMakeLists.txt 里的 target_compile_options。

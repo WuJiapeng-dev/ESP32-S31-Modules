@@ -1,13 +1,26 @@
 # ============================================================
-# ESP32-S31 + INMP441 + SYN6288 语音复述 / 默认配置
+# ESP32-S31 + INMP441 麦克风识别 → BLE 送手机 / 默认配置
 # 说明：
 # 1) 目标芯片 esp32s31 由 idf.py --preview set-target 决定
-# 2) console 挪到 USB Serial/JTAG：UART0 空闲，业务串口是 UART1（GPIO9/8）
+# 2) console 放 UART0（GPIO58/59，板载 CH343），烧录线即日志线；
+#    本工程不接喇叭，UART1/GPIO8/9/12 完全不使用
 # ============================================================
 
-# ---------- 控制台：USB Serial/JTAG（SOC_USB_SERIAL_JTAG_SUPPORTED=1）----------
-CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG=y
-CONFIG_ESP_CONSOLE_UART_DEFAULT=n
+# ---------- 控制台：UART0（GPIO58/59，就是板载 CH343 那两个脚）----------
+# 为什么改到 UART0 而不是 USB Serial/JTAG：
+#   板子上只有 CH343 一根线，console 放 USB-JTAG 时这根线上看不到任何应用日志
+#   （实测：只有 ROM 的 ESP-ROM 启动几行，之后 fs 静默）。
+#   本模块的 UART0 没有任何业务用途（SYN6288 在 UART1: GPIO8/9），
+#   所以把 UART0 拿来当控制台，烧录线和看日志可以是同一根线。
+# USB Serial/JTAG 保留为副通道，插原生 USB 口时两边都能看。
+CONFIG_ESP_CONSOLE_UART_CUSTOM=y
+CONFIG_ESP_CONSOLE_UART_CUSTOM_NUM_0=y
+CONFIG_ESP_CONSOLE_UART_TX_GPIO=58
+CONFIG_ESP_CONSOLE_UART_RX_GPIO=59
+CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
+CONFIG_ESP_CONSOLE_SECONDARY_USB_SERIAL_JTAG=y
+# CONFIG_ESP_CONSOLE_USB_SERIAL_JTAG is not set
+# CONFIG_ESP_CONSOLE_SECONDARY_NONE is not set
 
 # 启动阶段 UART 噪声降到最低
 CONFIG_BOOTLOADER_LOG_LEVEL_WARN=y
