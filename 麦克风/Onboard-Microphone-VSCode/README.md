@@ -104,7 +104,7 @@ I (99023) asr: 电平: RMS=60 这 0.5s 峰值=134
 `mic_i2s.h` 改一行 `#define MIC_BACKEND MIC_BACKEND_INMP441` 即可，
 接法 SCK=GPIO19、WS=GPIO46、SD=GPIO13、L/R 接 3V3、VDD 接 3V3，代码已保留。
 
-与同级的 `../喇叭/手机接收`（外接 INMP441 版）是同一个识别内核的两套采集实现。
+与同级的 `../Phone-Receive-VSCode`（外接 INMP441 版）是同一个识别内核的两套采集实现。
 
 共用同一套 BLE 身份：广播名 **`kskbl zdjd`**，Service `6a400001-…`、
 Write `6a400002-…`、Notify `6a400003-…`（CCCD `00002902-…` 由协议栈自动生成）。

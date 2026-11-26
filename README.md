@@ -14,15 +14,17 @@ ESP32-S31 系列功能模块的**多模块汇总仓库**。一个模块一个目
 |---|---|---|---|---|---|
 | 01 | [`串口/`](串口/) | 串口/BLE 桥 | BLE 收 `ON`/`OFF` → UART0 转发 → STM32 控 LED，Notify 回执 | UART0 (GPIO58/59) + NimBLE | 已烧录验证（CH343/COM8，2026-11-23） |
 | 02 | [`喇叭/`](喇叭/) | SYN6288 语音合成 | BLE 收任意 UTF-8 文本 → 转 GB2312 → UART1 下发 SYN6288 播报，BY 忙信号回执 | UART1 (GPIO9/8) + BY (GPIO12) + NimBLE | 已烧录验证（COM8，2026-11-23），待实物验证播报 |
-| 02a | [`喇叭/复述/`](喇叭/复述/) | 语音复述 | INMP441 → 离线自学习识别（MFCC+DTW）→ BLE Notify + SYN6288 念出识别结果 | I2S (GPIO19/46/13) + UART1 (GPIO9/8) + BY (GPIO12) + NimBLE | 编译通过（0 error / 0 warning，0.89MB，分区余 78%），已烧录，待实物验证 |
-| 02b | [`喇叭/手机接收/`](喇叭/手机接收/) | 识别送手机 | INMP441 → 离线自学习识别 → **只经 BLE Notify 推文字给手机**，不接喇叭（无 UART/TTS） | I2S (GPIO19/46/13) + NimBLE | 编译通过（0 error / 0 warning），待实机验证 |
 | 03 | [`音色/`](音色/) | 云端语音合成 | BLE 收文本 → HTTPS 调 **DeepSeek TTS** 拿裸 PCM → I2S/PDM 推功放；网页配 Key、选引擎与音色 | I2S (GPIO15/16/17) 或 PDM (GPIO17) + Wi-Fi + NimBLE | 编译通过（0 error / 0 warning，1.72MB，分区余 59%），网页见 [`控制台.html`](控制台.html)，待实机验证 |
-| 04 | [`麦克风（板载）/`](麦克风（板载）/) | 板载麦克风识别 | 板载 ES8389 + MIC1/MIC2 → 离线自学习识别（MFCC+DTW）→ **只经 BLE Notify 推文字给手机**，不接喇叭 | I2C (GPIO0/1) + I2S (BCLK3 / WS4 / ASDOUT6) + PA_CTRL (GPIO7) + NimBLE | 已烧录验证采集：`I2C 探测到 ES8389` + `Open codec device OK` + 电平自检非零，待验证识别 |
+| 04a | [`麦克风/Speaker-Repeat-VSCode/`](麦克风/Speaker-Repeat-VSCode/) | 麦克风复述 | INMP441 → 离线自学习识别（MFCC+DTW）→ BLE Notify + SYN6288 念出识别结果 | I2S (GPIO19/46/13) + UART1 (GPIO9/8) + BY (GPIO12) + NimBLE | 编译通过（0 error / 0 warning，0.89MB，分区余 78%），已烧录，待实物验证 |
+| 04b | [`麦克风/Phone-Receive-VSCode/`](麦克风/Phone-Receive-VSCode/) | 手机接收 | INMP441 → 离线自学习识别 → **只经 BLE Notify 推文字给手机**，不接喇叭（无 UART/TTS） | I2S (GPIO19/46/13) + NimBLE | 编译通过（0 error / 0 warning），待实机验证 |
+| 04c | [`麦克风/Onboard-Microphone-VSCode/`](麦克风/Onboard-Microphone-VSCode/) | 板载麦克风（VSCode / ESP-IDF） | 板载 ES8389 + MIC1/MIC2 → 离线自学习识别（MFCC+DTW）→ **只经 BLE Notify 推文字给手机**，不接喇叭 | I2C (GPIO0/1) + I2S (BCLK3 / WS4 / ASDOUT6) + PA_CTRL (GPIO7) + NimBLE | 已烧录验证采集：`I2C 探测到 ES8389` + `Open codec device OK` + 电平自检非零，待验证识别 |
+| 04d | [`麦克风/Onboard-Microphone-Arduino/`](麦克风/Onboard-Microphone-Arduino/) | 板载麦克风（Arduino IDE） | 板载 ES8389 + MIC1/MIC2 → 离线关键词识别（声学特征判决 + MFCC/DTW 模板）→ **只经 BLE Notify 推文字给手机** | I2C (GPIO0/1) + I2S (BCLK3 / WS4 / ASDOUT6) + PA_CTRL (GPIO7) + NimBLE | Arduino-ESP32 4.0.0 编译通过（约 1.03MB），已烧录实测（COM8），待验证识别 |
 
-> `喇叭/` 下现在是**三个互相独立的 ESP-IDF 工程**：根目录（SYN6288 离线合成）、
-> `复述/`（麦克风识别 + 喇叭念出来）、`手机接收/`（麦克风识别 → 手机显示，不接喇叭）。
-> 每层都有自己的 `CMakeLists.txt` / `sdkconfig.defaults` / `main/`，可单独编译烧录，
-> 互不依赖。同一块板子同一时间只能跑一个。
+> 麦克风相关的 4 个版本统一放在 `麦克风/` 下，按「功能 + 开发环境」分小目录：
+> `04a` / `04b` / `04c` 是 VSCode（ESP-IDF）工程，`04d` 是 Arduino IDE 工程。
+> 每个小目录都是**独立工程**（各有 `CMakeLists.txt` / `sdkconfig.defaults` / `main/`，或 Arduino 草图），
+> 可单独编译烧录，互不依赖，同一块板子同一时间只能跑一个。
+> `喇叭/` 现在只保留本层那个 SYN6288 合成工程，不再挂子工程。
 
 > **模块 03 的目录名有个硬限制**：ESP-IDF 的工具链处理不了非 ASCII 路径，
 > 在 `音色/` 这种中文目录下 `build` 会失败（gcc 报 `cannot read spec file`，
@@ -31,7 +33,12 @@ ESP32-S31 系列功能模块的**多模块汇总仓库**。一个模块一个目
 > 目录名用中文，GitHub 网页上的链接会自动转成 `%E4%B8%B2%E5%8F%A3` 这类 percent-encoded
 > 形式，属正常现象，点进去照常能打开。`git clone` 到本地后目录名就是中文。
 
-五个工程**共用同一套 BLE 身份**：广播名 `kskbl zdjd`，服务/特征 UUID
+> **例外是 `麦克风/` 下的 4 个版本目录**：一律用「功能中文名的直译英文 + 开发环境后缀」
+> （`Speaker-Repeat-VSCode`、`Phone-Receive-VSCode`、`Onboard-Microphone-VSCode`、`Onboard-Microphone-Arduino`），
+> 禁止用 `mic_ble_kws`、`kws`、`dtw` 这类内部代号当目录名；Arduino 版还受硬约束——
+> Arduino IDE 要求草图目录名与 `.ino` 同名、且只接受 ASCII 字符（中文目录会报"无效的项目名"）。
+
+所有工程**共用同一套 BLE 身份**：广播名 `kskbl zdjd`，服务/特征 UUID
 `6a400001/0002/0003-b5a3-f393-e0a9-e50e24dcca9e`。手机调试助手的配置可以原样复用，
 刷哪个工程就连哪个（同一时间只能跑一个）。
 
@@ -39,16 +46,17 @@ ESP32-S31 系列功能模块的**多模块汇总仓库**。一个模块一个目
 音频模拟直出、ESP32 拿不到数字流），要换音色只能走云端 TTS，于是另开一个模块，
 原模块保留作离线兜底。两者引脚不冲突，可以同时接线，但固件只能刷一个。
 
-**识别能力要看清（`喇叭/复述` 与 `喇叭/手机接收` 用的是同一个内核）**：
+**识别能力要看清（`麦克风/Speaker-Repeat-VSCode` 与 `麦克风/Phone-Receive-VSCode` 用的是同一个内核）**：
 它是"自学习模板匹配"，只能认出你用 `EN:` 教过的句子（最多 8 条、单句 2 秒），
 **不是通用中文听写**。原因是芯片没有 esp-sr 的预编译库、whisper/vosk 那类模型
-又远超 RAM，详细依据见 `喇叭/手机接收/README.md` §1。
+又远超 RAM，详细依据见 `麦克风/Phone-Receive-VSCode/README.md` §1。
 要认任意中文得走云端 ASR（两个工程都在 `on_utterance_done()` 留了接入点）。
 
-**`麦克风（板载）` 用的是这块板的板载麦克风**（慧勤智远 ESP32-S31 CB V1.1，
-codec 为 ES8389，I2C 在 GPIO0/1、I2S 在 GPIO3/4/6），一根线都不用接。
+**`麦克风/Onboard-Microphone-VSCode` 用的是这块板的板载麦克风**（慧勤智远 ESP32-S31 CB V1.1，
+codec 为 ES8389，I2C 在 GPIO0/1、I2S 在 GPIO3/4/6），一根线都不用接；
+`麦克风/Onboard-Microphone-Arduino` 是同一套板载硬件的 Arduino IDE 实现。
 早期按乐鑫 Function-CoreBoard-1 的 ES8311 资料去配（I2C 50/51）在这块板上必然扫不到设备，
-原因与修正记录在 `麦克风（板载）/README.md` §0.1。
+原因与修正记录在 `麦克风/Onboard-Microphone-VSCode/README.md` §0.1。
 
 后续模块在此表追加一行。
 
@@ -60,6 +68,7 @@ codec 为 ES8389，I2C 在 GPIO0/1、I2S 在 GPIO3/4/6），一根线都不用�
 | ESP-IDF | v6.1.0 |
 | 开发板 | ESP32-S31-CB V1.1（模块 ESP32-WROOM-3） |
 | 烧录口 | 板载 USB 转串口 **CH343**（VID `1A86` / PID `55D3`，枚举为 `USB-Enhanced-SERIAL CH343`），串口下载模式 `UART` |
+| Arduino 工程额外要求 | `arduino-esp32` **4.0.0**（首个支持 ESP32-S31 的版本）+ CH343 驱动 |
 
 `esp32s31` 在 v6.1 里是 preview 目标，**漏掉 `--preview` 会直接报 target 不支持**。
 
@@ -68,18 +77,14 @@ codec 为 ES8389，I2C 在 GPIO0/1、I2S 在 GPIO3/4/6），一根线都不用�
 ```
 ESP32-S31-Modules/
 ├── README.md              ← 本文件：仓库总说明、模块清单、环境约定
+├── 麦克风归类阶段报告.md    ← 2026-11-26 麦克风各版本归类的对照表、验证结果、提交记录
 ├── 控制台.html             ← 对外展示：模块 03 的网页控制台预览（离线，数据是假的）
-├── .gitignore             ← 仓库级忽略规则（覆盖所有模块）
 ├── 串口/                   ← 模块 01：BLE ↔ UART0 桥
 ├── 喇叭/                   ← 模块 02：SYN6288 离线语音合成（根目录这一层就是一个独立工程）
-│   ├── CMakeLists.txt     ← 根工程的入口
-│   ├── main/              ← BLE 收文本 → GB2312 → SYN6288 播报
-│   ├── 复述/               ← 02a：INMP441 → 识别 → Notify + 喇叭念出来
-│   │   ├── CMakeLists.txt / sdkconfig.defaults / partitions.csv
-│   │   └── main/          ← mic_i2s / fft / mfcc / dtw / asr + syn6288 / gb2312 / tts
-│   └── 手机接收/           ← 02b：INMP441 → 识别 → **只发 BLE**，不接喇叭
-│       ├── CMakeLists.txt / sdkconfig.defaults / partitions.csv
-│       └── main/          ← mic_i2s / fft / mfcc / dtw / asr（无 uart / 无 tts / 无 gb2312）
+│   ├── CMakeLists.txt     ← 根工程的入口（project: laba_s31_tts）
+│   ├── sdkconfig.defaults / partitions.csv / flash.bat
+│   ├── tools/gen_gb2312_table.py
+│   └── main/              ← BLE 收文本 → GB2312 → SYN6288 播报
 ├── 音色/                   ← 模块 03：云端 TTS（DeepSeek → I2S）
 │   ├── README.md          ← 模块说明：协议/接线/编译/验收/排查
 │   ├── CMakeLists.txt     ← ESP-IDF 工程入口（必须在这一层）
@@ -87,19 +92,34 @@ ESP32-S31-Modules/
 │   ├── tools/
 │   │   └── gen_preview.py ← 从 wifi_prov.c 抽出 PAGE_HTML，同时写根目录 控制台.html
 │   └── main/              ← 源码
-└── 麦克风（板载）/          ← 模块 04：板载 ES8389 麦克风 → 识别 → 只发 BLE
-    ├── README.md          ← 板型引脚表、为何必须 use_mclk=false、排查顺序
-    ├── CMakeLists.txt     ← project(board_mic)
-    ├── components/        ← esp_codec_dev（官方 codec 组件，含 ES8389 驱动）
-    └── main/              ← mic_i2s（ES8389 / INMP441 两后端）+ fft/mfcc/dtw/asr
+├── 麦克风/                 ← 模块 04：所有麦克风版本的统一父目录（按「功能 + 开发环境」分）
+│   ├── Speaker-Repeat-VSCode/      ← 04a：INMP441 → 识别 → Notify + SYN6288 念出来
+│   │   ├── CMakeLists.txt / sdkconfig.defaults / partitions.csv
+│   │   └── main/          ← mic_i2s / fft / mfcc / dtw / asr + syn6288 / gb2312 / tts
+│   ├── Phone-Receive-VSCode/       ← 04b：INMP441 → 识别 → **只发 BLE**，不接喇叭
+│   │   ├── CMakeLists.txt / sdkconfig.defaults / partitions.csv
+│   │   └── main/          ← mic_i2s / fft / mfcc / dtw / asr（无 uart / 无 tts / 无 gb2312）
+│   ├── Onboard-Microphone-VSCode/  ← 04c：板载 ES8389 麦克风 → 识别 → 只发 BLE（ESP-IDF 工程）
+│   │   ├── README.md      ← 板型引脚表、为何必须 use_mclk=false、排查顺序
+│   │   ├── CMakeLists.txt ← project(board_mic)
+│   │   ├── components/    ← esp_codec_dev（官方 codec 组件，含 ES8389 驱动）
+│   │   └── main/          ← mic_i2s（ES8389 / INMP441 两后端）+ fft/mfcc/dtw/asr
+│   └── Onboard-Microphone-Arduino/ ← 04d：板载 ES8389 麦克风 → 关键词识别 → 只发 BLE（Arduino IDE 工程）
+│       ├── Onboard-Microphone-Arduino.ino ← 主草图（目录名与 .ino 同名，Arduino 的硬要求）
+│       ├── es8389 / mic_i2s / kws / mfcc / fft / dtw / ble_bridge 的 .cpp/.h
+│       └── README.md      ← 板卡包 4.0.0、分区方案、BLE 命令、识别边界
+└── tools/                  ← 仓库级工具脚本（网页生成、域名绑定等）
 ```
 
 约定：
 
 - **网页这类展示物料放根目录，只有代码分模块**；`控制台.html` 由
   `音色/tools/gen_preview.py` 生成，不要手改（改 `音色/main/wifi_prov.c` 后重跑脚本）
-- **目录名即模块名，用中文**；目录内部的文件名、工程名（`project()`）仍保持 ASCII，
+- **根层模块目录名用中文**（`串口`/`喇叭`/`音色`/`麦克风`）；目录内部的文件名、工程名（`project()`）保持 ASCII，
   避免工具链在非 ASCII 路径下的意外问题
+- **`麦克风/` 下的版本目录用英文**：必须是「功能中文名的直译英文」+ 开发环境后缀（`-VSCode` / `-Arduino`），
+  不用内部代号/拼音（`mic_ble_kws`、`kws`、`dtw` 这类名字只允许出现在代码文件与工程名里）；
+  功能相近的版本共用同一功能主体（`Speaker-Repeat` / `Phone-Receive` / `Onboard-Microphone`），只靠环境后缀区分
 - **不放 `sdkconfig`**（构建时生成，机器相关），只提交 `sdkconfig.defaults`
 - **不放 `build/`**、`*.bin`、`*.elf`、`*.map`（见 `.gitignore`）
 - 每个模块的 `README.md` 必须能独立说明：协议、引脚、构建命令、验收标准、排查顺序
@@ -109,7 +129,7 @@ ESP32-S31-Modules/
 
 ```bat
 git clone https://github.com/WuJiapeng-dev/ESP32-S31-Modules.git
-cd ESP32-S31-Modules\<模块名>
+cd ESP32-S31-Modules\麦克风\Onboard-Microphone-VSCode
 idf.py --preview set-target esp32s31
 idf.py --preview build
 idf.py --preview -p COMx flash monitor
@@ -123,9 +143,15 @@ set IDF_PY_BUILD_JOBS=3
 idf.py --preview build
 ```
 
+Arduino IDE 工程（`麦克风/Onboard-Microphone-Arduino`）不用 `idf.py`：直接用 Arduino IDE 2.x
+打开 `Onboard-Microphone-Arduino.ino`，板卡包选 `arduino-esp32` 4.0.0，
+分区选 `Huge APP (3MB No OTA/1MB SPIFFS)`，详见该目录 `README.md`。
+
 ## 5. 新增模块步骤
 
-1. 根目录建新文件夹，名字用中文（与 `串口`/`喇叭`/`音色` 一致）
+1. 根目录建新文件夹，名字用中文（与 `串口`/`喇叭`/`音色`/`麦克风` 一致）；
+   若是麦克风的又一个版本，则在 `麦克风/` 下按「功能 + 开发环境」建英文子目录
+   （如 `Onboard-Microphone-Arduino`），名字必须是功能中文名的直译英文
 2. 拷一份现有模块的 `CMakeLists.txt` / `main/CMakeLists.txt` 作骨架，改 `project()` 名
 3. 写自己的 `sdkconfig.defaults`（**别忘 console 配置**，见下）
 4. 写上自己的 `README.md`

@@ -1,5 +1,5 @@
 /*
- * 麦克风.ino - ESP32-S31 板载麦克风 + BLE 双向 + 离线关键词识别（Arduino 框架）
+ * Onboard-Microphone-Arduino.ino - ESP32-S31 板载麦克风 + BLE 双向 + 离线关键词识别（Arduino 框架）
  *
  * 硬件：慧勤智远 ESP32-S31 CB V1.1 小系统板
  *       两颗 LMA3729T381-OAS02 模拟 MEMS 麦克风 → ES8389（I2S + I2C）→ ESP32-S31

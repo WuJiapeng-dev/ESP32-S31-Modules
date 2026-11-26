@@ -1,7 +1,7 @@
 /*
  * asr.c - 流式端点检测 + MFCC + DTW 模板匹配 + 模板持久化（不接喇叭）
  *
- * 与 ../复述/main/asr.c 的差异：
+ * 与 ../Speaker-Repeat-VSCode/main/asr.c 的差异：
  *   - 没有 tts_say()/tts_busy()：所有反馈只走 BLE Notify
  *   - 没有"播报期间暂停收音"的逻辑（无声学回授，不需要）
  *   - 命令集去掉 SAY（没喇叭），加 STATE/VER
