@@ -1,0 +1,13 @@
+# 构建产物
+build/
+build_*/
+sdkconfig
+sdkconfig.old
+*.bin
+*.elf
+*.map
+
+# 编辑器/系统
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,10 @@
+﻿# 分区表：单 app，app 分区 4MB
+#
+# 为什么要自定义：默认 SINGLE_APP_LARGE 的 factory 只有 0x177000（1.47MB），
+# 本工程同时编进 Wi-Fi + mbedTLS 根证书包 + HTTP 客户端，会溢出。
+# 板载 16MB flash，4MB 给 app 很宽裕。
+#
+# Name,     Type, SubType, Offset,   Size,     Flags
+nvs,        data, nvs,     0x9000,   0x6000,
+phy_init,   data, phy,     0xf000,   0x1000,
+factory,    app,  factory, 0x10000,  0x400000,
