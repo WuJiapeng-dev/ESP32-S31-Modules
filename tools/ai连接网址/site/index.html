@@ -59,9 +59,27 @@ button{font-family:inherit}
 .banner.on{display:flex}
 .banner svg{flex:0 0 auto;margin-top:1px}
 
+/* ---------- 对话 ---------- */
+.chatbox{max-height:44vh;min-height:120px;overflow-y:auto;display:flex;flex-direction:column;gap:8px;
+  padding:10px;background:#f7f9fc;border:1px solid var(--line);border-radius:12px;margin-bottom:12px}
+.chat-empty{color:var(--muted);font-size:12.5px;line-height:1.7;text-align:center;padding:20px 8px}
+.msg{max-width:86%;padding:9px 12px;border-radius:12px;font-size:13px;line-height:1.62;
+  white-space:pre-wrap;word-break:break-word}
+.msg.me{align-self:flex-end;background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+.msg.ai{align-self:flex-start;background:#fff;border:1px solid var(--line);color:var(--ink);
+  border-bottom-left-radius:4px;box-shadow:0 2px 8px -6px rgba(23,32,51,.5)}
+.msg.sys{align-self:center;background:transparent;color:var(--muted);font-size:12px;padding:2px 6px}
+
+/* ---------- 日志 ---------- */
+.logbar{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.logview{height:44vh;min-height:140px;overflow:auto;margin:0;padding:11px 12px;
+  background:#f8fafc;border:1px solid var(--line);border-radius:10px;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  font-size:11.5px;line-height:1.6;color:#33415a;white-space:pre-wrap;word-break:break-all}
+.btn.sm{padding:7px 11px;font-size:12px;border-radius:9px}
+
 /* ---------- 标签页 ---------- */
-.tabs{max-width:820px;margin:0 auto;display:flex;gap:6px;padding:10px 10px 0;
-  overflow-x:auto;scrollbar-width:none}
+.tabs{max-width:820px;margin:0 auto;display:flex;flex-wrap:wrap;gap:6px;padding:10px 10px 0}
 .tabs::-webkit-scrollbar{display:none}
 .tab{flex:0 0 auto;display:inline-flex;align-items:center;gap:6px;padding:9px 13px;border-radius:10px;
   border:1px solid transparent;background:transparent;color:var(--muted);
@@ -107,6 +125,11 @@ textarea{min-height:96px;resize:vertical;line-height:1.6}
   color:#8a97ad;padding:8px;border-radius:8px;cursor:pointer;line-height:0}
 .eye.on{color:var(--blue)}
 .hint{font-size:11.5px;color:var(--muted);margin-top:6px;line-height:1.5}
+.fhint{font-size:11.5px;color:#7c8798;margin-top:6px;line-height:1.65;
+  padding-left:9px;border-left:2px solid #dfe7f3}
+.fhint b{color:#42506b;font-weight:600}
+.fhint code{font-size:11px}
+.fhint em{font-style:normal;color:#b45309}
 
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line);
   background:#fff;color:var(--ink);border-radius:10px;padding:10px 14px;
@@ -294,9 +317,17 @@ code{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:11.8px;backgrou
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>
     试听
   </button>
+  <button class="tab" role="tab" aria-selected="false" data-t="chat">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a7 7 0 0 1-7 7H8l-4 3v-4.2A7 7 0 0 1 4 12a7 7 0 0 1 7-7h2a7 7 0 0 1 7 7z"/></svg>
+    对话
+  </button>
   <button class="tab" role="tab" aria-selected="false" data-t="dev">
     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="7" height="7" rx="1.6"/><rect x="14" y="4" width="7" height="7" rx="1.6"/><rect x="3" y="13" width="7" height="7" rx="1.6"/><rect x="14" y="13" width="7" height="7" rx="1.6"/></svg>
     设备
+  </button>
+  <button class="tab" role="tab" aria-selected="false" data-t="log">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16M4 12h10M4 19h13"/></svg>
+    日志
   </button>
 </nav>
 
@@ -339,6 +370,8 @@ code{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:11.8px;backgrou
       <div class="field">
         <label for="ssid">网络名称 SSID</label>
         <input id="ssid" type="text" maxlength="32" placeholder="例如 MyHome" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <p class="fhint">填<b>你家路由器的名字</b>：手机 Wi-Fi 列表里看到的那个，也可以进路由器背面标签上找。
+          注意区分大小写，别带前后空格；中文名一般能连，但个别路由器会乱码，建议改成英文。</p>
       </div>
       <div class="field">
         <label for="pass">密码</label>
@@ -350,6 +383,8 @@ code{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:11.8px;backgrou
             </svg>
           </button>
         </div>
+        <p class="fhint">填<b>手机连这个 Wi-Fi 时输的那串密码</b>，8 位以上，区分大小写。
+          只有开放网络（不用密码的）才留空。改完在「引擎」页填 Key，才算配好。</p>
         <p class="hint">密码不会被回显，也不显示已保存的密码。</p>
       </div>
       <div class="note" id="ipNote">等待设备数据</div>
@@ -393,6 +428,8 @@ code{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:11.8px;backgrou
         <div class="field">
           <label for="key">API Key</label>
           <input id="key" type="text" maxlength="127" placeholder="sk-xxxxxxxxxxxxxxxx" autocomplete="off" autocapitalize="off" spellcheck="false">
+          <p class="fhint">填<b>sk- 开头</b>的那一串，获取步骤见下面「Key 从哪里拿」。
+            <em>只显示一次</em>，丢了只能重建；语音合成和「对话」共用这一个 Key。</p>
         </div>
         <div class="note">只需要一个 Key，没有 AppID / Token / cluster 那一套。鉴权头是 <code>Bearer &lt;key&gt;</code>，空格分隔。</div>
         <details class="tip">
@@ -408,18 +445,22 @@ code{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:11.8px;backgrou
         <div class="field">
           <label for="db_appid">AppID</label>
           <input id="db_appid" type="text" maxlength="31" placeholder="例如 3145xxxxxx" autocomplete="off" inputmode="numeric">
+          <p class="fhint">填<b>纯数字</b>的 App ID：火山引擎控制台 → 语音技术 → 语音合成 → 应用管理，应用名旁边那串数字。</p>
         </div>
         <div class="field">
           <label for="db_token">Access Token</label>
           <input id="db_token" type="text" maxlength="127" placeholder="控制台里的 Access Token" autocomplete="off" spellcheck="false">
+          <p class="fhint">填<b>同一页</b>里的 Access Token（不是 Secret Key，两个长得像，别拿错）。</p>
         </div>
         <div class="field">
           <label for="db_cluster">Cluster</label>
           <input id="db_cluster" type="text" maxlength="31" placeholder="volcano_tts" autocomplete="off" spellcheck="false">
+          <p class="fhint"><b>一般不用改</b>，保持 <code>volcano_tts</code> 就行。</p>
         </div>
         <div class="field">
           <label for="db_voice">voice_type</label>
           <input id="db_voice" type="text" maxlength="63" placeholder="BV700_streaming" autocomplete="off" spellcheck="false">
+          <p class="fhint">从音色列表里<b>原样复制</b>，例如 <code>BV700_streaming</code>（通用女声）。名字写错不会报错，只会静音。</p>
         </div>
         <div class="note warn">鉴权头是 <code>Bearer;&lt;token&gt;</code>，<b>分号</b>分隔，不是空格 —— 这里最容易写错。</div>
         <div class="note warn">豆包后端<b>尚未接入</b>：V1 是非流式接口，整段音频以 base64 塞在 JSON 里一次返回，长句会撑爆内存。现在切过去只会回 <code>ERR:ENGINE</code>，凭据可以先存着。</div>
@@ -471,6 +512,8 @@ code{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:11.8px;backgrou
       <div class="field">
         <label for="text">要念的内容</label>
         <textarea id="text" placeholder="输入一句话，点下面的按钮送到设备喇叭">你好，我是语音合成模块，现在的声音来自云端合成。</textarea>
+        <p class="fhint">填一句<b>要板子念出来的话</b>。上限 500 字节（约 160 个汉字），
+          超了会被拦下不发请求——这是设备缓冲区的大小，不是页面限制。</p>
         <div class="counter" id="counter">
           <span id="cntText">0 字</span>
           <span id="cntByte">0 / 500 字节</span>
@@ -515,6 +558,33 @@ code{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:11.8px;backgrou
     </div>
   </section>
 
+  <!-- ============ 对话 ============ -->
+  <section class="view" id="vChat" role="tabpanel" aria-label="对话">
+    <div class="card">
+      <h2>和板子对话</h2>
+      <p class="desc">你说的话由板子转给 DeepSeek，回答再带回来显示在这里。勾了「朗读回答」，板子还会用当前音色把它念出来。</p>
+      <div class="chatbox" id="chatBox">
+        <div class="chat-empty" id="chatEmpty">还没有对话。问点什么试试，比如「用三句话介绍一下你自己」。</div>
+      </div>
+      <div class="field">
+        <label for="chatText">你的问题</label>
+        <textarea id="chatText" placeholder="Enter 发送，Shift+Enter 换行"></textarea>
+        <p class="fhint">在这里<b>打字提问</b>，Enter 发送、Shift+Enter 换行。上限 400 字节。
+          问题会由板子转给 DeepSeek，<em>不要把 API Key 打在问题里</em>。</p>
+        <div class="counter">
+          <span id="chatCnt">0 字</span>
+          <span id="chatByte">0 / 400 字节</span>
+        </div>
+      </div>
+      <label class="chk">
+        <input type="checkbox" id="chatSpeak" checked>
+        朗读回答（用当前音色）
+      </label>
+      <button class="btn p block" id="btnChat">发送</button>
+      <p class="hint" id="chatHint">板子要能上网、填过 DeepSeek Key。一问一答不记上下文，最长等 25 秒。</p>
+    </div>
+  </section>
+
   <!-- ============ 设备 ============ -->
   <section class="view" id="vDev" role="tabpanel" aria-label="设备">
     <div class="card">
@@ -532,10 +602,14 @@ code{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:11.8px;backgrou
       <div class="field">
         <label for="fName">名称（可留空）</label>
         <input id="fName" type="text" maxlength="24" placeholder="例如 客厅喇叭" autocomplete="off">
+        <p class="fhint">随便起，只用来<b>在自己列表里区分</b>是哪块板子，不影响设备本身。</p>
       </div>
       <div class="field">
         <label for="fUrl">地址</label>
         <input id="fUrl" type="text" maxlength="120" placeholder="https://设备地址" autocomplete="off" autocapitalize="off" spellcheck="false">
+        <p class="fhint">填<b>板子的地址</b>：连着板子热点时固定是 <code>192.168.4.1</code>；
+          板子连进你家 Wi-Fi 后，是路由器分给它的那个 IP（在路由器后台能看到）。
+          只写 IP 就行，页面会自动补 <code>http://</code>。</p>
       </div>
       <p class="hint">本页是 https 站点，只能添加 https 设备地址；内网 http 地址会被浏览器的混合内容策略拦截。</p>
       <button class="btn p block" id="btnAddDev">添加并切换</button>
@@ -569,6 +643,22 @@ code{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:11.8px;backgrou
     </div>
   </section>
 
+  <!-- ============ 日志 ============ -->
+  <section class="view" id="vLog" role="tabpanel" aria-label="日志">
+    <div class="card">
+      <h2>设备日志</h2>
+      <p class="desc">板子运行时打印的日志，这里同步显示。手机上也能看——排查「为什么没声音」「为什么连不上」时先看这里。</p>
+      <div class="logbar">
+        <button class="btn sm" id="btnLogPause">暂停</button>
+        <button class="btn sm" id="btnLogClear">清空</button>
+        <button class="btn sm" id="btnLogCopy">复制</button>
+        <label class="chk" style="margin:0"><input type="checkbox" id="logAuto" checked> 跟随最新</label>
+      </div>
+      <pre class="logview" id="logView">（还没有日志）</pre>
+      <p class="hint" id="logHint">板子只保留最近 80 行；想停下来看就点「暂停」。</p>
+    </div>
+  </section>
+
 </main>
 
 <p class="ft">同一份页面可直接嵌进设备固件，也可单独部署为管理站</p>
@@ -595,6 +685,23 @@ code{font-family:ui-monospace,Consolas,Menlo,monospace;font-size:11.8px;backgrou
     return new Promise(function (resolve) {
       setTimeout(function () {
         if (path === '/api/state') { resolve(JSON.parse(JSON.stringify(s))); return; }
+        if (path.indexOf('/api/logs') === 0) {
+          window.__L = (window.__L || 0) + 1;
+          if (window.__L % 3 === 1) {
+            resolve({ ok: 1, next: window.__L, text: '' });
+          } else {
+            resolve({ ok: 1, next: window.__L,
+              text: '[演示 ' + window.__L + '] I (3120) wifi: STA 已连接, IP 192.168.1.86\n' +
+                    '[演示 ' + window.__L + '] I (3121) speak: 收到试听请求, 23 字节\n' });
+          }
+          return;
+        }
+        if (path === '/api/chat') {
+          var q = (params && params.text) ? String(params.text) : '';
+          resolve({ ok: 1, reply: '【示例】这是演示数据，不是真的回答。\n你刚才说的是：' + q +
+            '\n真实板子上，这一步由固件请求 api.deepseek.com，把回答文字带回来。' });
+          return;
+        }
         if (path === '/api/test') {
           s.busy = 1;
           setTimeout(function () { s.busy = 0; }, 4000);
@@ -1008,6 +1115,7 @@ function activate(t) {
   if (target) { target.classList.add('on'); }
   try { localStorage.setItem('ksk.tab', t); } catch (e) {}
   if (t === 'dev') { renderDevList(); pollOthers(true); }
+  if (t === 'log') { setTimeout(function () { logPoll(); }, 0); }
 }
 (function () {
   var tabs = document.querySelectorAll('.tab');
@@ -1695,6 +1803,160 @@ $('btnCopy').addEventListener('click', function () {
     toast((e.message || '复制失败') + '（已帮你选中）', 'err', 4200);
   });
 });
+
+/* ================= 对话 ================= */
+var CHAT_MAX_BYTES = 400;
+
+function trimBytes(s, max) {
+  var out = '', n = 0;
+  for (var i = 0; i < s.length; i++) {
+    var c = s.charAt(i);
+    var b = bytes(c);
+    if (n + b > max) { break; }
+    out += c;
+    n += b;
+  }
+  return out;
+}
+
+function chatLen() {
+  var t = $('chatText').value || '';
+  var b = bytes(t);
+  setText('chatCnt', t.length + ' 字');
+  setText('chatByte', b + ' / ' + CHAT_MAX_BYTES + ' 字节');
+  $('chatByte').style.color = (b > CHAT_MAX_BYTES) ? '#c2410c' : '';
+  return b;
+}
+
+function chatBubble(role, text) {
+  var empty = $('chatEmpty');
+  if (empty && empty.parentNode) { empty.parentNode.removeChild(empty); }
+  var box = $('chatBox');
+  var d = document.createElement('div');
+  d.className = 'msg ' + role;
+  d.textContent = text;
+  box.appendChild(d);
+  box.scrollTop = box.scrollHeight;
+  return d;
+}
+
+function chatBusy(on) {
+  var dev = curDev();
+  if (!dev) { return; }
+  if (on) { S.busy[dev.id] = 1; } else { delete S.busy[dev.id]; }
+}
+
+function chatSend() {
+  var dev = curDev();
+  if (!dev) { activate('dev'); return; }
+
+  var t = ($('chatText').value || '').replace(/^\s+|\s+$/g, '');
+  if (!t) { toast('先说点什么', 'err'); return; }
+  if (bytes(t) > CHAT_MAX_BYTES) { toast('太长了，分几句问', 'err', 3200); return; }
+
+  chatBubble('me', t);
+  $('chatText').value = '';
+  chatLen();
+
+  var wait = chatBubble('ai', '板子正在想…');
+  var btn = $('btnChat');
+  btn.disabled = true;
+  setText('chatHint', '已发送，等回答（最长 25 秒）…');
+  chatBusy(true);          /* 聊天期间 httpd 被占用，别让轮询去抢 */
+
+  api(dev, '/api/chat', { text: t }).then(function (j) {
+    chatBusy(false);
+    btn.disabled = false;
+    if (j && j.ok && j.reply) {
+      wait.textContent = j.reply;
+      setText('chatHint', '回答 ' + j.reply.length + ' 字');
+      if ($('chatSpeak').checked) {
+        api(dev, '/api/test', { text: trimBytes(j.reply, 300) }).catch(function () {});
+      }
+    } else {
+      wait.className = 'msg sys';
+      wait.textContent = '没成功：' + ((j && j.err) || '设备没有回应');
+      setText('chatHint', '失败原因见上面的提示');
+    }
+    $('chatBox').scrollTop = $('chatBox').scrollHeight;
+  }).catch(function (e) {
+    chatBusy(false);
+    btn.disabled = false;
+    wait.className = 'msg sys';
+    wait.textContent = '发送失败：' + ((e && e.message) || '连不上设备');
+    setText('chatHint', '检查设备是否在线、地址是否对');
+    $('chatBox').scrollTop = $('chatBox').scrollHeight;
+  });
+}
+
+$('chatText').addEventListener('input', chatLen);
+$('chatText').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    chatSend();
+  }
+});
+$('btnChat').addEventListener('click', chatSend);
+chatLen();
+
+/* ================= 日志 ================= */
+var LOGV = { since: 0, paused: false, lines: [] };
+
+function logPaint() {
+  var v = $('logView');
+  if (!LOGV.lines.length) { v.textContent = '（还没有日志）'; return; }
+  v.textContent = LOGV.lines.join('\n');
+  if ($('logAuto').checked) { v.scrollTop = v.scrollHeight; }
+}
+
+function logPoll() {
+  if (LOGV.paused || S.tab !== 'log') { return; }
+  var dev = curDev();
+  if (!dev) { return; }
+
+  var path = LOGV.since ? ('/api/logs?id=' + LOGV.since) : '/api/logs';
+  api(dev, path, null).then(function (j) {
+    if (!j || !j.ok) {
+      setText('logHint', '取日志失败：' + ((j && j.err) || '未知'));
+      return;
+    }
+    if (j.next) { LOGV.since = j.next; }
+    if (j.text) {
+      var parts = j.text.split('\n');
+      for (var i = 0; i < parts.length; i++) {
+        if (parts[i]) { LOGV.lines.push(parts[i]); }
+      }
+      if (LOGV.lines.length > 400) { LOGV.lines = LOGV.lines.slice(-400); }
+      logPaint();
+    }
+    setText('logHint', LOGV.lines.length + ' 行 · 每 1.5 秒同步');
+  }).catch(function () {
+    setText('logHint', '连不上设备，已停止同步');
+  });
+}
+
+$('btnLogPause').addEventListener('click', function () {
+  LOGV.paused = !LOGV.paused;
+  this.textContent = LOGV.paused ? '继续' : '暂停';
+  setText('logHint', LOGV.paused ? '已暂停，点「继续」恢复'
+                                 : LOGV.lines.length + ' 行 · 每 1.5 秒同步');
+  if (!LOGV.paused) { logPoll(); }
+});
+
+$('btnLogClear').addEventListener('click', function () {
+  LOGV.lines = [];
+  logPaint();
+  logPoll();
+});
+
+$('btnLogCopy').addEventListener('click', function () {
+  var t = LOGV.lines.join('\n');
+  if (!t) { toast('还没有日志', 'err'); return; }
+  copyText(t).then(function () { toast('日志已复制', 'ok', 2600); })
+             .catch(function (e) { selectShare(); toast(e.message || '复制失败', 'err', 3600); });
+});
+
+setInterval(logPoll, 1500);
 
 /* ================= 启动 ================= */
 function ensureLocalDevice() {

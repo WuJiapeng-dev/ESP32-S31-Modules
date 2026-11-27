@@ -45,8 +45,11 @@
 #define AUDIO_BACKEND_PDM   1   /* PDM -> RC 低通 -> 模拟功放 */
 #define AUDIO_BACKEND_I2S   2   /* I2S 标准模式 -> 数字功放 */
 
+/* 本项目实际接线：MAX98357 数字功放（见 桌面/联网对话 里的接线图）
+   麦克风 INMP441 走另一组 I2S（SCK=19 / WS=46 / SD=13），由独立模块使用，
+   这个模块只负责输出，所以不占那三个脚。 */
 #ifndef AUDIO_OUT_BACKEND
-#define AUDIO_OUT_BACKEND   AUDIO_BACKEND_PDM
+#define AUDIO_OUT_BACKEND   AUDIO_BACKEND_I2S
 #endif
 
 /* DeepSeek format=pcm 固定 24kHz、16bit、单声道，不可调 */
@@ -63,9 +66,14 @@
 
 #else   /* AUDIO_BACKEND_I2S */
 
-#define AUDIO_I2S_BCLK_GPIO     15
-#define AUDIO_I2S_LRC_GPIO      16
-#define AUDIO_I2S_DIN_GPIO      17
+/* 按实际接线（MAX98357 → ESP32-S31）：BCLK=GPIO57 / LRCK=GPIO56 / DIN=GPIO38 */
+#define AUDIO_I2S_BCLK_GPIO     57
+#define AUDIO_I2S_LRC_GPIO      56
+#define AUDIO_I2S_DIN_GPIO      38
+/* MAX98357 的 SD 脚接 GPIO37，但这里不主动驱动：
+   芯片内部有上拉，悬空即“使能 + 默认增益”，能正常出声。
+   将来要做静音/改增益时再把它配成输出。 */
+#define AUDIO_I2S_SD_GPIO       37
 
 #endif
 
@@ -81,7 +89,8 @@
 #define AUDIO_OUT_DESC  "I2S BCLK=GPIO" _AUDIO_STR(AUDIO_I2S_BCLK_GPIO) \
                         " LRC=GPIO" _AUDIO_STR(AUDIO_I2S_LRC_GPIO) \
                         " DIN=GPIO" _AUDIO_STR(AUDIO_I2S_DIN_GPIO) \
-                        " -> 数字功放(MAX98357A)"
+                        " SD=GPIO" _AUDIO_STR(AUDIO_I2S_SD_GPIO) \
+                        "(默认悬空=使能) -> 数字功放(MAX98357A)"
 #endif
 
 esp_err_t audio_out_init(void);

@@ -29,6 +29,7 @@
 #include "ble_bridge.h"
 #include "cfg_store.h"
 #include "speak.h"
+#include "log_ring.h"
 #include "wifi_prov.h"
 
 static const char *TAG = "yinse";
@@ -57,6 +58,9 @@ static void nimble_host_task(void *param)
 
 void app_main(void)
 {
+    /* 0. 先接管日志，后面的启动日志才留得住，网页上能看 */
+    log_ring_init();
+
     /* 1. NVS：BLE 校准数据 + 本模块的配置都存在这里 */
     esp_err_t err = nvs_flash_init();
     if (err == ESP_ERR_NVS_NO_FREE_PAGES || err == ESP_ERR_NVS_NEW_VERSION_FOUND) {

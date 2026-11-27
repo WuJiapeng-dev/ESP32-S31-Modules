@@ -28,6 +28,8 @@
 
 #include "ble_bridge.h"
 #include "cfg_store.h"
+#include "ds_chat.h"
+#include "log_ring.h"
 #include "speak.h"
 #include "wifi_prov.h"
 
@@ -43,230 +45,9 @@ static httpd_handle_t     s_httpd;
 static int                s_retry;
 
 /* ============================== 控制台页面 ============================== */
-static const char PAGE_HTML[] =
-"<!doctype html><html lang='zh-CN'><head><meta charset='utf-8'>"
-"<meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'>"
-"<title>云端语音合成控制台</title><style>"
-":root{--bg:#f4f7fb;--card:#fff;--ink:#182334;--muted:#637189;--line:#e2e9f2;"
-"--blue:#2563eb;--blue-s:#edf4ff;--teal:#0d9488;--teal-s:#e8f8f5;"
-"--purple:#7c3aed;--purple-s:#f3edff;--amber:#b45309;--amber-s:#fff5e6;"
-"--red:#c0392b;--red-s:#fdf0ee;--code:#f7f9fc}"
-"*{box-sizing:border-box}"
-"body{margin:0;background:var(--bg);color:var(--ink);"
-"font:14px/1.65 -apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif}"
-".wrap{max-width:760px;margin:0 auto;padding-bottom:40px}"
-".top{position:sticky;top:0;z-index:9;background:rgba(244,247,251,.96);"
-"backdrop-filter:blur(8px);border-bottom:1px solid var(--line);padding:14px 16px 12px}"
-".logo{font-size:17px;font-weight:700;letter-spacing:.3px}"
-".logo span{color:var(--blue)}"
-".badges{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}"
-".badge{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:600;white-space:nowrap}"
-".b-blue{background:var(--blue-s);color:var(--blue)}"
-".b-teal{background:var(--teal-s);color:var(--teal)}"
-".b-purple{background:var(--purple-s);color:var(--purple)}"
-".b-amber{background:var(--amber-s);color:var(--amber)}"
-".b-red{background:var(--red-s);color:var(--red)}"
-".b-gray{background:#eef1f6;color:#5c6a7e}"
-".tabs{display:flex;gap:6px;padding:12px 16px 0;overflow-x:auto}"
-".nav{border:1px solid var(--line);background:#fff;color:var(--muted);"
-"padding:7px 14px;border-radius:20px;font-size:13px;white-space:nowrap;cursor:pointer;font-family:inherit}"
-".nav.on{background:var(--blue-s);border-color:#bcd3ff;color:var(--blue);font-weight:600}"
-"main{padding:14px 16px 0}"
-".view{display:none}.view.on{display:block}"
-".card{background:var(--card);border:1px solid var(--line);border-radius:12px;"
-"padding:18px 18px 20px;margin-bottom:14px}"
-".card h2{font-size:16px;margin:0 0 4px}"
-".desc{color:var(--muted);font-size:12.5px;margin:0 0 14px}"
-"label.f{display:block;font-size:12.5px;color:var(--muted);margin:0 0 5px;font-weight:600}"
-"input,textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;"
-"font:inherit;font-size:13px;background:#fff;color:var(--ink)}"
-"input:focus,textarea:focus{outline:2px solid var(--blue-s);border-color:var(--blue)}"
-"textarea{min-height:88px;resize:vertical}"
-".field{margin-bottom:12px}"
-"input[type=range]{padding:0;border:0;height:26px;background:transparent}"
-".btn{border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;"
-"padding:8px 14px;font-size:13px;cursor:pointer;font-family:inherit}"
-".btn.primary{background:var(--blue);border-color:var(--blue);color:#fff;font-weight:600;width:100%;padding:11px}"
-".btn.primary:active{background:#1259c3}"
-".btn.danger{color:var(--red);width:100%;padding:10px}"
-".note{border-left:4px solid var(--blue);background:var(--blue-s);padding:10px 13px;"
-"border-radius:0 8px 8px 0;font-size:12.4px;margin:12px 0}"
-".note.warn{border-color:var(--amber);background:var(--amber-s)}"
-".note.ok{border-color:var(--teal);background:var(--teal-s)}"
-".pill-line{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}"
-".chip{border:1px solid var(--line);background:#fff;border-radius:20px;"
-"padding:5px 12px;font-size:12px;cursor:pointer}"
-".chip.on{background:var(--blue-s);border-color:#bcd3ff;color:var(--blue);font-weight:600}"
-"code{font-family:Consolas,Menlo,monospace;font-size:11.8px;background:var(--code);"
-"border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:#164a86}"
-"table{width:100%;border-collapse:collapse;font-size:12.6px}"
-"th,td{border:1px solid var(--line);padding:7px 10px;text-align:left}"
-"td:first-child{color:var(--muted);width:42%}"
-"#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:24px;z-index:99;"
-"display:flex;flex-direction:column;gap:8px;align-items:center}"
-".toast{background:#182334;color:#fff;padding:10px 16px;border-radius:9px;"
-"font-size:12.8px;box-shadow:0 6px 22px rgba(0,0,0,.16)}"
-"</style></head><body><div class='wrap'>"
-
-"<div class='top'><div class='logo'>云端 <span>语音合成控制台</span></div>"
-"<div class='badges'>"
-"<span class='badge b-gray' id='bWifi'>Wi-Fi 未知</span>"
-"<span class='badge b-gray' id='bBle'>BLE 未知</span>"
-"<span class='badge b-gray' id='bEng'>引擎 未知</span>"
-"</div></div>"
-
-"<div class='tabs'>"
-"<button class='nav on' data-t='conn'>连接</button>"
-"<button class='nav' data-t='eng'>引擎</button>"
-"<button class='nav' data-t='voice'>音色</button>"
-"<button class='nav' data-t='test'>试听</button>"
-"</div><main>"
-
-"<section class='view on' id='vConn'><div class='card'>"
-"<h2>Wi-Fi 连接</h2>"
-"<p class='desc'>只支持 2.4GHz 网络，5GHz 连不上。</p>"
-"<div class='field'><label class='f'>网络名称 SSID</label>"
-"<input id='ssid' maxlength='32' placeholder='例如 MyHome'></div>"
-"<div class='field'><label class='f'>密码</label>"
-"<input id='pass' type='password' maxlength='64' placeholder='开放网络可留空'></div>"
-"<div class='note' id='ipNote'>当前未连接</div>"
-"<button class='btn primary' id='btnConn'>保存并连接</button>"
-"</div></section>"
-
-"<section class='view' id='vEng'><div class='card'>"
-"<h2>合成引擎</h2>"
-"<p class='desc'>选一个引擎，填好它的凭据。两套凭据会同时保存，"
-"以后想换回来不用重填。</p>"
-"<div class='pill-line'>"
-"<span class='chip eng on' data-e='deepseek'>DeepSeek</span>"
-"<span class='chip eng' data-e='doubao'>豆包 · 火山引擎</span>"
-"</div>"
-"<div id='engDs'>"
-"<p class='desc'>platform.deepseek.com → 左侧 API keys → 创建，得到一串 sk- 开头的密钥。"
-"语音合成与对话共用同一个 Key。</p>"
-"<div class='field'><label class='f'>API Key</label>"
-"<input id='key' maxlength='127' placeholder='sk-xxxxxxxxxxxxxxxx' autocomplete='off'></div>"
-"<div class='note'>只需要一个 Key，没有 AppID / Token / cluster 那一套。"
-"鉴权头是 <code>Bearer &lt;key&gt;</code>，空格分隔。</div>"
-"</div>"
-"<div id='engDb' style='display:none'>"
-"<p class='desc'>console.volcengine.com → 语音技术 → 语音合成，开通后在"
-"「服务接口认证信息」里拿 AppID / Access Token / Cluster。</p>"
-"<div class='field'><label class='f'>AppID</label>"
-"<input id='db_appid' maxlength='31' placeholder='例如 3145xxxxxx' autocomplete='off'></div>"
-"<div class='field'><label class='f'>Access Token</label>"
-"<input id='db_token' maxlength='127' placeholder='控制台里的 Access Token' autocomplete='off'></div>"
-"<div class='field'><label class='f'>Cluster</label>"
-"<input id='db_cluster' maxlength='31' placeholder='volcano_tts'></div>"
-"<div class='field'><label class='f'>voice_type</label>"
-"<input id='db_voice' maxlength='63' placeholder='BV700_streaming'></div>"
-"<div class='note warn'>鉴权头是 <code>Bearer;&lt;token&gt;</code>，<b>分号</b>分隔，"
-"不是空格 —— 这里最容易写错。</div>"
-"<div class='note warn'>豆包后端<b>尚未接入</b>：V1 是非流式接口，整段音频以 base64"
-"塞在 JSON 里一次返回，长句会撑爆内存。现在切过去只会回 <code>ERR:ENGINE</code>。</div>"
-"</div>"
-"<button class='btn primary' id='btnEng'>保存引擎配置</button>"
-"</div></section>"
-
-"<section class='view' id='vVoice'><div class='card'>"
-"<h2>音色</h2>"
-"<p class='desc'>这一页只对 DeepSeek 生效，它只有两个发音人。"
-"切到豆包时音色在「引擎」页填 voice_type。</p>"
-"<div class='pill-line'>"
-"<span class='chip on' data-v='stella'>海星 · 女声</span>"
-"<span class='chip' data-v='tide'>暗潮 · 男声</span>"
-"</div>"
-"<div class='field'><label class='f'>voice_id</label>"
-"<input id='voice' maxlength='15' value='stella' readonly></div>"
-"<div class='note warn'>这个接口<b>不支持调语速和音量</b>，官网上写明了。"
-"要变速只能改文本本身（比如加「慢一点说」这类提示对 TTS 无效，实际得靠标点控制停顿）。</div>"
-"<button class='btn primary' id='btnVoice'>保存</button>"
-"</div></section>"
-
-"<section class='view' id='vTest'><div class='card'>"
-"<h2>试听</h2>"
-"<p class='desc'>先把「连接」和「引擎」填好。设备正在播放时再点会排队。</p>"
-"<div class='field'><textarea id='text'>你好，我是 ESP32-S31 语音模块，现在的声音来自云端合成。</textarea></div>"
-"<button class='btn primary' id='btnTest'>播放试听</button>"
-"</div>"
-"<div class='card'><h2>设备状态</h2><table><tbody id='stateTable'>"
-"<tr><td>加载中</td><td>…</td></tr></tbody></table></div>"
-"<div class='card'><h2>恢复出厂</h2>"
-"<p class='desc'>清空 Wi-Fi 与密钥，清完自动重启。</p>"
-"<button class='btn danger' id='btnReset'>清空配置</button></div>"
-"</section>"
-
-"</main></div><div id='toast'></div><script>"
-"var $=function(i){return document.getElementById(i)};"
-"var state={};"
-"function toast(m){var d=document.createElement('div');d.className='toast';d.textContent=m;"
-"$('toast').appendChild(d);setTimeout(function(){d.remove()},2600)}"
-"function setBadge(id,txt,cls){var e=$(id);e.textContent=txt;e.className='badge '+cls}"
-"document.querySelectorAll('.nav').forEach(function(b){b.addEventListener('click',function(){"
-"document.querySelectorAll('.nav').forEach(function(x){x.classList.remove('on')});"
-"b.classList.add('on');"
-"document.querySelectorAll('.view').forEach(function(v){v.classList.remove('on')});"
-"$('v'+b.dataset.t.charAt(0).toUpperCase()+b.dataset.t.slice(1)).classList.add('on');"
-"})});"
-"var tVoice=0,tEng=0;"
-"document.querySelectorAll('.chip[data-v]').forEach(function(c){c.addEventListener('click',function(){"
-"$('voice').value=c.dataset.v;tVoice=1;"
-"document.querySelectorAll('.chip[data-v]').forEach(function(x){x.classList.remove('on')});"
-"c.classList.add('on')})});"
-"function showEngine(e){"
-"document.querySelectorAll('.eng').forEach(function(x){x.classList.toggle('on',x.dataset.e===e)});"
-"$('engDs').style.display=(e==='deepseek')?'':'none';"
-"$('engDb').style.display=(e==='doubao')?'':'none'}"
-"document.querySelectorAll('.eng').forEach(function(c){c.addEventListener('click',function(){"
-"tEng=1;showEngine(c.dataset.e)})});"
-"function post(url,obj){var b=new URLSearchParams();"
-"for(var k in obj){if(obj[k]!==undefined)b.set(k,obj[k])}"
-"return fetch(url,{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:b})"
-".then(function(r){return r.json()}).catch(function(){return {ok:0,err:'网络错误'}})}"
-"function fill(s){state=s;"
-"if(s.wifi){setBadge('bWifi','Wi-Fi 已连接','b-teal')}else{setBadge('bWifi','Wi-Fi 未连接','b-red')}"
-"setBadge('bBle',s.ble?'BLE 已连接':'BLE 广播中',s.ble?'b-purple':'b-gray');"
-"var en=s.engine||'deepseek';"
-"var enName=(en==='doubao')?'豆包':'DeepSeek';"
-"setBadge('bEng',enName+(s.ready?' 就绪':' 未配置'),s.ready?'b-blue':'b-amber');"
-"if(!tEng){showEngine(en)}"
-"$('ipNote').textContent=s.wifi?('已连接 '+s.ssid+'，IP '+s.ip):'当前未连接，请填写下面的网络信息';"
-"$('ipNote').className='note'+(s.wifi?' ok':'');"
-"if(s.voice&&!tVoice){$('voice').value=s.voice;"
-"document.querySelectorAll('.chip[data-v]').forEach(function(x){"
-"x.classList.toggle('on',x.dataset.v===s.voice)})}"
-"if(s.has_key){$('key').placeholder='已保存，留空表示不修改'}"
-"if(s.has_token){$('db_token').placeholder='已保存，留空表示不修改'}"
-"if(s.db_appid){$('db_appid').value=s.db_appid}"
-"if(s.db_cluster){$('db_cluster').value=s.db_cluster}"
-"if(s.db_voice){$('db_voice').value=s.db_voice}"
-"if(s.ssid){$('ssid').value=s.ssid}"
-"var rows=[['Wi-Fi',s.wifi?('已连接 '+s.ssid):'未连接'],['IP',s.wifi?s.ip:'-'],"
-"['BLE',s.ble?'手机已连接':'广播中'],['引擎',enName+(s.ready?' · 就绪':' · 缺凭据')],"
-"['音色',(en==='doubao')?(s.db_voice||'-'):(s.voice||'-')],"
-"['播放',s.busy?'正在播放':'空闲'],['热点','kskbl-setup (192.168.4.1)']];"
-"$('stateTable').innerHTML=rows.map(function(r){return '<tr><td>'+r[0]+'</td><td>'+r[1]+'</td></tr>'}).join('')"
-"}"
-"function poll(){fetch('/api/state').then(function(r){return r.json()}).then(function(s){"
-"if(!state.init){fill(s);state.init=1}else{var ini=state.init;fill(s);state.init=ini}"
-"}).catch(function(){setBadge('bWifi','控制台断开','b-red')})}"
-"$('btnConn').addEventListener('click',function(){post('/api/save',{ssid:$('ssid').value,"
-"pass:$('pass').value}).then(function(j){toast(j.ok?'已保存，正在连接…':(j.err||'失败'));setTimeout(poll,1200)})});"
-"$('btnEng').addEventListener('click',function(){"
-"var e=document.querySelector('.eng.on').dataset.e;"
-"post('/api/save',{engine:e,key:$('key').value,"
-"db_appid:$('db_appid').value,db_token:$('db_token').value,"
-"db_cluster:$('db_cluster').value,db_voice:$('db_voice').value})"
-".then(function(j){toast(j.ok?'引擎配置已保存':(j.err||'失败'));"
-"if(j.ok){tEng=0;$('key').value='';$('db_token').value=''}poll()})});"
-"$('btnVoice').addEventListener('click',function(){post('/api/save',{voice:$('voice').value})"
-".then(function(j){toast(j.ok?'音色已保存':(j.err||'失败'));if(j.ok)tVoice=0;poll()})});"
-"$('btnTest').addEventListener('click',function(){post('/api/test',{text:$('text').value})"
-".then(function(j){toast(j.ok?'已发送，留意喇叭':(j.err||'失败'))})});"
-"$('btnReset').addEventListener('click',function(){if(!confirm('确定清空全部配置？'))return;"
-"post('/api/reset',{}).then(function(){toast('已清空，设备重启中…')})});"
-"poll();setInterval(poll,3000);"
-"</script></body></html>";
+/* 页面正文在 page_html.h 中，由 tools/gen_page.py 从根目录 控制台.html 生成。
+   改界面：改 HTML → 重跑该脚本 → 编译烧录，不必手改 C 字符串。 */
+#include "page_html.h"
 
 /* ============================== 工具函数 ============================== */
 static void url_decode(char *s)
@@ -559,6 +340,155 @@ static esp_err_t api_test(httpd_req_t *req)
     return ESP_OK;
 }
 
+/* 网页看日志：GET /api/logs?id=N；不带 id 表示“给我最近 60 行” */
+static esp_err_t api_logs(httpd_req_t *req)
+{
+    char q[64] = {0};
+    char v[24] = {0};
+    bool has_id = false;
+    uint32_t id = 0;
+
+    if (httpd_req_get_url_query_str(req, q, sizeof(q)) == ESP_OK &&
+        httpd_query_key_value(q, "id", v, sizeof(v)) == ESP_OK) {
+        id = (uint32_t)strtoul(v, NULL, 10);
+        has_id = true;
+    }
+
+    uint32_t cur   = log_ring_next();
+    uint32_t since = id;
+    if (!has_id) {
+        since = (cur > 60u) ? (cur - 60u) : 0u;      /* 首次进来只倒最近几十行 */
+    }
+
+    char *raw = malloc(1500);
+    if (raw == NULL) {
+        reply_json(req, "{\"ok\":0,\"err\":\"内存不足\"}");
+        return ESP_OK;
+    }
+
+    int n = log_ring_drain(since, raw, 1500);
+
+    size_t cap = (size_t)n * 6 + 96;
+    char *out = malloc(cap);
+    if (out == NULL) {
+        free(raw);
+        reply_json(req, "{\"ok\":0,\"err\":\"内存不足\"}");
+        return ESP_OK;
+    }
+
+    int plen = snprintf(out, cap, "{\"ok\":1,\"next\":%u,\"text\":\"", (unsigned)cur);
+    int elen = (plen > 0)
+             ? ds_chat_json_escape(raw, out + plen, (int)(cap - (size_t)plen - 3))
+             : -1;
+    free(raw);
+
+    if (plen <= 0 || elen < 0) {
+        free(out);
+        reply_json(req, "{\"ok\":0,\"err\":\"日志组装失败\"}");
+        return ESP_OK;
+    }
+
+    out[plen + elen]     = '"';
+    out[plen + elen + 1] = '}';
+    out[plen + elen + 2] = '\0';
+
+    reply_json(req, out);
+    free(out);
+    return ESP_OK;
+}
+
+/* 一问一答：把问题送去 DeepSeek 的 chat/completions，把文字回答原样带回浏览器。
+   注意：这里会阻塞到接口返回（最长 CHAT_TIMEOUT_MS），期间 httpd 不处理别的请求。 */
+#define CHAT_REPLY_MAX  2048
+
+static esp_err_t api_chat(httpd_req_t *req)
+{
+    form_t f;
+    if (read_form(req, &f) != ESP_OK) {
+        reply_json(req, "{\"ok\":0,\"err\":\"内存不足\"}");
+        return ESP_OK;
+    }
+
+    if (f.text[0] == '\0') {
+        reply_json(req, "{\"ok\":0,\"err\":\"说点什么再发\"}");
+        return ESP_OK;
+    }
+
+    if (!wifi_sta_connected()) {
+        reply_json(req, "{\"ok\":0,\"err\":\"板子还没连上 Wi-Fi，出不了网\"}");
+        return ESP_OK;
+    }
+
+    app_cfg_t c;
+    if (cfg_load(&c) != ESP_OK || c.api_key[0] == '\0') {
+        reply_json(req, "{\"ok\":0,\"err\":\"还没填 DeepSeek API Key\"}");
+        return ESP_OK;
+    }
+
+    char *reply = malloc(CHAT_REPLY_MAX);
+    if (reply == NULL) {
+        reply_json(req, "{\"ok\":0,\"err\":\"内存不足\"}");
+        return ESP_OK;
+    }
+
+    int status = 0;
+    esp_err_t err = ds_chat_ask(c.api_key, f.text, reply, CHAT_REPLY_MAX, &status);
+
+    if (err != ESP_OK) {
+        char msg[120];
+
+        if (err == ESP_ERR_INVALID_SIZE) {
+            snprintf(msg, sizeof(msg), "{\"ok\":0,\"err\":\"问得太长了，分几句问\"}");
+        } else if (status == 401) {
+            snprintf(msg, sizeof(msg), "{\"ok\":0,\"err\":\"API Key 无效（401）\"}");
+        } else if (status == 402) {
+            snprintf(msg, sizeof(msg), "{\"ok\":0,\"err\":\"账户余额不足（402）\"}");
+        } else if (status == 429) {
+            snprintf(msg, sizeof(msg), "{\"ok\":0,\"err\":\"请求太频繁（429）\"}");
+        } else if (status > 0) {
+            snprintf(msg, sizeof(msg), "{\"ok\":0,\"err\":\"接口返回 HTTP %d\"}", status);
+        } else {
+            snprintf(msg, sizeof(msg), "{\"ok\":0,\"err\":\"连不上 api.deepseek.com\"}");
+        }
+
+        reply_json(req, msg);
+        free(reply);
+        return ESP_OK;
+    }
+
+    /* 回答可能带引号、换行，直接拼会破坏 JSON，必须转义。预留 6 倍余量。 */
+    size_t len = strlen(reply);
+    size_t cap = len * 6 + 64;
+    char *out = malloc(cap);
+    if (out == NULL) {
+        free(reply);
+        reply_json(req, "{\"ok\":0,\"err\":\"内存不足\"}");
+        return ESP_OK;
+    }
+
+    const char *head = "{\"ok\":1,\"reply\":\"";
+    size_t hlen = strlen(head);
+    memcpy(out, head, hlen);
+
+    int elen = ds_chat_json_escape(reply, out + hlen, (int)(cap - hlen - 3));
+    if (elen < 0) {
+        free(reply);
+        free(out);
+        reply_json(req, "{\"ok\":0,\"err\":\"回答太长，无法返回\"}");
+        return ESP_OK;
+    }
+
+    out[hlen + (size_t)elen]     = '"';
+    out[hlen + (size_t)elen + 1] = '}';
+    out[hlen + (size_t)elen + 2] = '\0';
+
+    reply_json(req, out);
+
+    free(reply);
+    free(out);
+    return ESP_OK;
+}
+
 static esp_err_t api_reset(httpd_req_t *req)
 {
     cfg_erase();
@@ -711,7 +641,7 @@ esp_err_t wifi_prov_start(void)
 
     if (s_httpd == NULL) {
         httpd_config_t hc = HTTPD_DEFAULT_CONFIG();
-        hc.stack_size      = 6144;
+        hc.stack_size      = 12288;      /* 聊天要在 httpd 任务里跑 TLS 握手 */
         hc.lru_purge_enable = true;
         hc.max_uri_handlers = 8;
         ESP_RETURN_ON_ERROR(httpd_start(&s_httpd, &hc), TAG, "HTTP 服务启动失败");
@@ -720,11 +650,15 @@ esp_err_t wifi_prov_start(void)
         httpd_uri_t u_state = { .uri = "/api/state",  .method = HTTP_GET,  .handler = api_state };
         httpd_uri_t u_save  = { .uri = "/api/save",   .method = HTTP_POST, .handler = api_save  };
         httpd_uri_t u_test  = { .uri = "/api/test",   .method = HTTP_POST, .handler = api_test  };
+        httpd_uri_t u_chat  = { .uri = "/api/chat",   .method = HTTP_POST, .handler = api_chat  };
+        httpd_uri_t u_logs  = { .uri = "/api/logs",   .method = HTTP_GET,  .handler = api_logs  };
         httpd_uri_t u_reset = { .uri = "/api/reset",  .method = HTTP_POST, .handler = api_reset };
         httpd_register_uri_handler(s_httpd, &u_root);
         httpd_register_uri_handler(s_httpd, &u_state);
         httpd_register_uri_handler(s_httpd, &u_save);
         httpd_register_uri_handler(s_httpd, &u_test);
+        httpd_register_uri_handler(s_httpd, &u_chat);
+        httpd_register_uri_handler(s_httpd, &u_logs);
         httpd_register_uri_handler(s_httpd, &u_reset);
     }
 

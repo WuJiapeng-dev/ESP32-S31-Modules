@@ -9,6 +9,11 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 
+/* 必须先包含本模块头文件：AUDIO_OUT_BACKEND / AUDIO_BACKEND_* 是它定义的宏。
+   放在下面的 #if 之后，两个宏都还是“未定义”，预处理器会按 0 比较，
+   结果是永远安装 PDM 的头、却编译 I2S 的分支。 */
+#include "audio_out.h"
+
 #include "driver/gpio.h"
 #if AUDIO_OUT_BACKEND == AUDIO_BACKEND_PDM
 #include "driver/i2s_pdm.h"
@@ -17,8 +22,6 @@
 #endif
 #include "esp_check.h"
 #include "esp_log.h"
-
-#include "audio_out.h"
 
 static const char *TAG = "audio";
 

@@ -5,6 +5,8 @@ idf_component_register(
          "wifi_prov.c"
          "audio_out.c"
          "ds_tts.c"
+         "ds_chat.c"
+         "log_ring.c"
          "speak.c"
     INCLUDE_DIRS "."
     REQUIRES bt
